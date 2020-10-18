@@ -137,7 +137,7 @@ class SimpleContainer implements ArrayAccess, ContainerInterface, IContainer {
 			}
 		} catch (ReflectionException $e) {
 			// Class does not exist
-			throw new QueryNotFoundException($baseMsg . ' ' . $e->getMessage());
+			throw new QueryNotFoundException($baseMsg . ' ' . $e->getMessage(), $e->getCode(), $e);
 		}
 	}
 
