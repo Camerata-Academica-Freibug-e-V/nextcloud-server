@@ -144,7 +144,7 @@ class URLGenerator implements IURLGenerator {
 		$theme = \OC_Util::getTheme();
 
 		//if a theme has a png but not an svg always use the png
-		$basename = substr(basename($file), 0, -4);
+		$basename = substr($file,0,-4);
 
 		try {
 			if ($appName === 'core' || $appName === '') {
