@@ -65,6 +65,9 @@
     <IfModule mod_env.c>
         SetEnv htaccessWorking true
     </IfModule>
+    php_value upload_max_filesize 4G
+    php_value post_max_size 4G
+    php_value memory_limit 4G
 </IfModule>
 
 <IfModule mod_mime.c>
