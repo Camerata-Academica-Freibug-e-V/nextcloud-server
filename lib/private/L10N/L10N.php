@@ -145,6 +145,7 @@ class L10N implements IL10N {
 	 * Called by \OC_L10N_String
 	 * @return array
 	 */
+	#[\Override]
 	public function getTranslations(): array {
 		return $this->translations;
 	}
