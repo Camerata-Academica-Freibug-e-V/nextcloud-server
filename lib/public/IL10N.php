@@ -89,4 +89,11 @@ interface IL10N {
 	 * @since 14.0.0
 	 */
 	public function getLocaleCode(): string;
+
+	/**
+	 * The plain translation array UNTRANSLATED => TRANSLATED
+	 *
+	 * @return array translations
+	 */
+	public function getTranslations(): array;
 }
