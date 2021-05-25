@@ -63,14 +63,20 @@ class DateTimeFormatter implements IDateTimeFormatter {
 		if ($timestamp === null) {
 			return new \DateTime('now', $timeZone);
 		} elseif (!$timestamp instanceof \DateTime) {
-			$dateTime = new \DateTime('now', $timeZone);
-			$dateTime->setTimestamp($timestamp);
-			return $dateTime;
+			$dateTime = new \DateTime;
+			if ($timestamp instanceof \DateTimeInterface) {
+				$dateTime->setTimestamp($timestamp->getTimestamp())
+						 ->setTimezone($timestamp->getTimezone());
+			} else {
+				$dateTime->setTimestamp((int)$timestamp);
+			}
+		} else {
+			$dateTime = $timestamp;
 		}
 		if ($timeZone) {
-			$timestamp->setTimezone($timeZone);
+			$dateTime->setTimezone($timeZone);
 		}
-		return $timestamp;
+		return $dateTime;
 	}
 
 	/**
