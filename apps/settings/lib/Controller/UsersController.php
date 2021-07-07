@@ -22,7 +22,6 @@ use OCA\Settings\BackgroundJobs\VerifyUserData;
 use OCA\Settings\ConfigLexicon;
 use OCA\Settings\Events\BeforeTemplateRenderedEvent;
 use OCA\Settings\Settings\Admin\Users;
-use OCA\User_LDAP\User_Proxy;
 use OCP\Accounts\IAccount;
 use OCP\Accounts\IAccountManager;
 use OCP\Accounts\PropertyDoesNotExistException;
@@ -124,18 +123,8 @@ class UsersController extends Controller {
 
 		/* SORT OPTION: SORT_USERCOUNT or SORT_GROUPNAME */
 		$sortGroupsBy = MetaData::SORT_USERCOUNT;
-		$isLDAPUsed = false;
 		if ($this->config->getSystemValueBool('sort_groups_by_name', false)) {
 			$sortGroupsBy = MetaData::SORT_GROUPNAME;
-		} else {
-			if ($this->appManager->isEnabledForUser('user_ldap')) {
-				$isLDAPUsed
-					= $this->groupManager->isBackendUsed('\OCA\User_LDAP\Group_Proxy');
-				if ($isLDAPUsed) {
-					// LDAP user count can be slow, so we sort by group name here
-					$sortGroupsBy = MetaData::SORT_GROUPNAME;
-				}
-			}
 		}
 
 		$canChangePassword = $this->canAdminChangeUserPasswords();
@@ -159,29 +148,21 @@ class UsersController extends Controller {
 			'canRemove' => $adminGroup->canRemoveUser(),
 		];
 
-		if (!$isLDAPUsed && $this->appManager->isEnabledForUser('user_ldap')) {
-			$isLDAPUsed = (bool)array_reduce($this->userManager->getBackends(), function ($ldapFound, $backend) {
-				return $ldapFound || $backend instanceof User_Proxy;
-			});
-		}
-
 		$disabledUsers = -1;
 		$userCount = 0;
 
-		if (!$isLDAPUsed) {
-			if ($isAdmin || $isDelegatedAdmin) {
-				$disabledUsers = $this->userManager->countDisabledUsers();
-				$userCount = array_reduce($this->userManager->countUsers(), function ($v, $w) {
-					return $v + (int)$w;
-				}, 0);
-			} else {
-				// User is subadmin !
-				[$userCount,$disabledUsers] = $this->userManager->countUsersAndDisabledUsersOfGroups($groupsInfo->getGroups(), self::COUNT_LIMIT_FOR_SUBADMINS);
-			}
+		if ($isAdmin || $isDelegatedAdmin) {
+			$disabledUsers = $this->userManager->countDisabledUsers();
+			$userCount = array_reduce($this->userManager->countUsers(), function ($v, $w) {
+				return $v + (int)$w;
+			}, 0);
+		} else {
+			// User is subadmin !
+			[$userCount,$disabledUsers] = $this->userManager->countUsersAndDisabledUsersOfGroups($groupsInfo->getGroups(), self::COUNT_LIMIT_FOR_SUBADMINS);
+		}
 
-			if ($disabledUsers > 0) {
-				$userCount -= $disabledUsers;
-			}
+		if ($disabledUsers > 0) {
+			$userCount -= $disabledUsers;
 		}
 
 		$recentUsersGroup = [
