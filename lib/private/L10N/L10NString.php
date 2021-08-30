@@ -33,17 +33,13 @@ class L10NString implements \JsonSerializable {
 			$identity = $translations[$this->text];
 		}
 
-		if (is_array($identity)) {
-			$pipeCheck = implode('', $identity);
-			if (str_contains($pipeCheck, '|')) {
-				return 'Can not use pipe character in translations';
-			}
-
-			$identity = implode('|', $identity);
-		} elseif (str_contains($identity, '|')) {
-			return 'Can not use pipe character in translations';
+		if (!$this->pipeCheck($identity)) {
+			return 'Can not use unescaped pipe character in translations, prepend another pipe character to escape a single pipe character';
 		}
 
+		if (is_array($identity)) {
+			$identity = implode('|', $identity);
+		}
 		$beforeIdentity = $identity;
 		$identity = str_replace('%n', '%count%', $identity);
 
@@ -66,5 +62,19 @@ class L10NString implements \JsonSerializable {
 	#[\Override]
 	public function jsonSerialize(): string {
 		return $this->__toString();
+	}
+
+	/**
+	 * @param string|array $identity
+	 * @return bool
+	 */
+	private function pipeCheck($identity) {
+		$pipeCheck = is_array($identity) ? implode('', $identity) : $identity;
+		if (preg_match('/^\|++$/', $pipeCheck)) {
+			$parts = explode('|', $pipeCheck);
+		} elseif (preg_match_all('/(?:\|\||[^\|])++/', $pipeCheck, $matches)) {
+			$parts = $matches[0];
+		}
+		return count($matches) <= 1;
 	}
 }
