@@ -808,7 +808,7 @@ class Image implements IImage {
 			imagesavealpha($this->resource, true);
 		}
 
-		if (!$this->resource) {
+		if (!$this->valid()) {
 			$this->logger->debug('Image->loadFromFile, could not load', ['app' => 'core']);
 			return false;
 		}
