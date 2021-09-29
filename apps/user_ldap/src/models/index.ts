@@ -47,6 +47,7 @@ export type LDAPConfig = {
 	homeFolderNamingRule: string
 	hasMemberOfFilterSupport: string
 	useMemberOfToDetectMembership: '0' | '1' // Example: 1
+	ldapExpertUsernameForce: '0' | '1'
 	ldapExpertUsernameAttr: string // Example: uid
 	ldapExpertUUIDUserAttr: string // Example: uid
 	ldapExpertUUIDGroupAttr: string
