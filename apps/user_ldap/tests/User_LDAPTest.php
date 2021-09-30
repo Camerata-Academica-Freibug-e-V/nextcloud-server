@@ -289,7 +289,7 @@ class User_LDAPTest extends TestCase {
 			->method('getConnectionResource')
 			->willReturn(ldap_connect('ldap://example.com'));
 
-		$this->deletedUsersIndex->expects($this->once())
+		$this->deletedUsersIndex->expects($this->exactly(2))
 			->method('isUserMarked')
 			->with($uid)
 			->willReturn(true);
@@ -489,9 +489,16 @@ class User_LDAPTest extends TestCase {
 	public function testUserExists(): void {
 		$backend = new User_LDAP($this->access, $this->notificationManager, $this->pluginManager, $this->logger, $this->deletedUsersIndex);
 		$this->prepareMockForUserExists();
+		$this->connection->method('__get')
+			->willReturnMap([['ldapUserFilter', '(objectClass=person)']]);
 
-		$this->userManager->expects($this->never())
-			->method('get');
+		$user = $this->createMock(User::class);
+		$user->method('getDN')->willReturn('dnOfRoland,dc=test');
+		$this->access->method('readAttribute')->willReturn([]);
+		$this->userManager->expects($this->once())
+			->method('get')
+			->with('gunslinger')
+			->willReturn($user);
 		$this->userManager->expects($this->once())
 			->method('exists')
 			->with('gunslinger')
@@ -526,9 +533,42 @@ class User_LDAPTest extends TestCase {
 			->method('exists')
 			->with('formerUser')
 			->willReturn(true);
+		$this->deletedUsersIndex->expects($this->once())
+			->method('isUserMarked')
+			->with('formerUser')
+			->willReturn(true);
 
-		//test for deleted user – always returns true as long as we have the user in DB
 		$this->assertTrue($backend->userExists('formerUser'));
+	}
+
+	public function testUserExistsForUnavailableUnmarkedUser(): void {
+		$backend = new User_LDAP($this->access, $this->notificationManager, $this->pluginManager, $this->logger, $this->deletedUsersIndex);
+		$this->prepareMockForUserExists();
+		$this->userManager->expects($this->once())
+			->method('exists')
+			->with('formerUser')
+			->willReturn(true);
+		$this->deletedUsersIndex->expects($this->once())
+			->method('isUserMarked')
+			->with('formerUser')
+			->willReturn(false);
+		$this->access->method('getUserMapper')
+			->willReturn($this->createMock(UserMapping::class));
+
+		$this->assertFalse($backend->userExists('formerUser'));
+	}
+
+	public function testUserExistsForMarkedUnmappedUser(): void {
+		$backend = new User_LDAP($this->access, $this->notificationManager, $this->pluginManager, $this->logger, $this->deletedUsersIndex);
+		$this->prepareMockForUserExists();
+		$this->userManager->expects($this->once())
+			->method('exists')
+			->with('mallory')
+			->willReturn(false);
+		$this->deletedUsersIndex->expects($this->never())
+			->method('isUserMarked');
+
+		$this->assertFalse($backend->userExists('mallory'));
 	}
 
 	public function testUserExistsForNeverExisting(): void {
@@ -553,6 +593,8 @@ class User_LDAPTest extends TestCase {
 	public function testUserExistsPublicAPI(): void {
 		$backend = new User_LDAP($this->access, $this->notificationManager, $this->pluginManager, $this->logger, $this->deletedUsersIndex);
 		$this->prepareMockForUserExists();
+		$this->connection->method('__get')
+			->willReturnMap([['ldapUserFilter', '(objectClass=person)']]);
 		Server::get(IUserManager::class)->registerBackend($backend);
 
 		$user = $this->createMock(User::class);
@@ -568,8 +610,10 @@ class User_LDAPTest extends TestCase {
 				}
 				return false;
 			});
-		$this->userManager->expects($this->never())
-			->method('get');
+		$this->userManager->expects($this->once())
+			->method('get')
+			->with('gunslinger')
+			->willReturn($user);
 		$this->userManager->expects($this->once())
 			->method('exists')
 			->with('gunslinger')
@@ -600,6 +644,9 @@ class User_LDAPTest extends TestCase {
 			->willReturnCallback(function ($name) {
 				if ($name === 'homeFolderNamingRule') {
 					return 'attr:testAttribute';
+				}
+				if ($name === 'ldapUserFilter') {
+					return '(objectClass=person)';
 				}
 				return null;
 			});
@@ -658,6 +705,9 @@ class User_LDAPTest extends TestCase {
 				if ($name === 'homeFolderNamingRule') {
 					return 'attr:testAttribute';
 				}
+				if ($name === 'ldapUserFilter') {
+					return '(objectClass=person)';
+				}
 				return null;
 			});
 
@@ -712,18 +762,24 @@ class User_LDAPTest extends TestCase {
 				if ($name === 'homeFolderNamingRule') {
 					return 'attr:testAttribute';
 				}
+				if ($name === 'ldapUserFilter') {
+					return '(objectClass=person)';
+				}
 				return null;
 			});
 		$this->access->expects($this->any())
 			->method('readAttribute')
 			->willReturnCallback(function ($dn, $attr) {
 				switch ($dn) {
+					case 'dnOfNewYorker,dc=test':
+						return [];
 					default:
 						return false;
 				}
 			});
 
 		$user = $this->createMock(User::class);
+		$user->method('getDN')->willReturn('dnOfNewYorker,dc=test');
 		$user->expects($this->any())
 			->method('getUsername')
 			->willReturn('newyorker');
@@ -750,6 +806,7 @@ class User_LDAPTest extends TestCase {
 
 		$backend = new User_LDAP($this->access, $this->notificationManager, $this->pluginManager, $this->logger, $this->deletedUsersIndex);
 		$this->prepareMockForUserExists();
+		$this->deletedUsersIndex->method('isUserMarked')->with($uid)->willReturn(true);
 
 		$this->connection->expects($this->any())
 			->method('__get')
@@ -816,6 +873,8 @@ class User_LDAPTest extends TestCase {
 					return 'displayname';
 				} elseif ($name === 'ldapUserDisplayName2') {
 					return 'displayname2';
+				} elseif ($name === 'ldapUserFilter') {
+					return '(objectClass=person)';
 				}
 				return null;
 			});
