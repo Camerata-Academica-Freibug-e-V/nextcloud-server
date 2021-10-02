@@ -1,0 +1,25 @@
+{
+  "use-cscope": null,
+  "tag-dir": null,
+  "filter": {
+    "php-file-ext-list": [
+      "php"
+    ],
+    "php-path-list": [
+      "3rdparty",
+      "lib",
+      "apps/provisioning_api",
+      "apps/ldap_write_support",
+      "apps/user_ldap",
+      "apps/settings"
+    ],
+    "php-path-list-without-subdir": [],
+    "ignore-ruleset": [
+      "# like .gitignore file ",
+      "/vendor*/**/polyfill-php80/**/*.php",
+      "/vendor*/**/polyfill-php81/**/*.php",
+      "/vendor*/humbug/php-scoper/**",
+      "/build/**"
+    ]
+  }
+}
