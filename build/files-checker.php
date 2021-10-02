@@ -9,6 +9,7 @@ declare(strict_types=1);
 $expectedFiles = [
 	'.',
 	'..',
+	'.ac-php-conf.json',
 	'.devcontainer',
 	'.editorconfig',
 	'.envrc',
