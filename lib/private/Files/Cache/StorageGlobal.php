@@ -25,104 +25,125 @@ use OCP\IDBConnection;
  * @psalm-api
  */
 class StorageGlobal {
-	/** @var array<string, array{id: string, numeric_id: int, available: bool, last_checked: int}> */
+	/** @var array<string, array{id: string, numeric_id: int, available: bool, last_checked: int, fileid: ?int}> */
 	private array $cache = [];
 
-	/** @var array<int, array{id: string, numeric_id: int, available: bool, last_checked: int}> */
-	private array $numericIdCache = [];
+	/** @var array<int, string> */
+	private array $idByNumericIdCache = [];
 
 	public function __construct(
 		private readonly IDBConnection $connection,
 	) {
 	}
 
+	private function selectStorageInfo(IQueryBuilder $builder): IQueryBuilder {
+		return $builder->select(['storages.id', 'storages.numeric_id', 'storages.available', 'storages.last_checked', 'fc.fileid'])
+			->from('storages', 'storages')
+			->leftJoin(
+				'storages', 'filecache', 'fc',
+				$builder->expr()->andX(
+					$builder->expr()->eq('storages.numeric_id', 'fc.storage'),
+					$builder->expr()->eq('fc.path', $builder->createNamedParameter(''))
+				));
+	}
+
 	/**
 	 * @param string[] $storageIds
 	 */
 	public function loadForStorageIds(array $storageIds): void {
-		$builder = $this->connection->getQueryBuilder();
-		$query = $builder->select(['id', 'numeric_id', 'available', 'last_checked'])
-			->from('storages')
-			->where($builder->expr()->in('id', $builder->createParameter('ids'), IQueryBuilder::PARAM_STR_ARRAY));
 
+		$storageIds = array_values(array_map([Storage::class, 'adjustStorageId'], $storageIds));
+
+		$builder = $this->connection->getQueryBuilder();
+		$query = $this->selectStorageInfo($builder);
+		$query->where($builder->expr()->in('id', $builder->createParameter('ids'), IQueryBuilder::PARAM_STR_ARRAY));
 		foreach (array_chunk($storageIds, IQueryBuilder::MAX_IN_PARAMETERS) as $chunk) {
 			$query->setParameter('ids', $chunk, IQueryBuilder::PARAM_STR_ARRAY);
 
 			$result = $query->executeQuery();
-			while (($row = $result->fetch()) !== false) {
+			while ($row = $result->fetch()) {
 				$normalizedRow = [
 					'id' => (string)$row['id'],
 					'numeric_id' => (int)$row['numeric_id'],
 					'available' => (bool)$row['available'],
 					'last_checked' => (int)$row['last_checked'],
+					'fileid' => $row['fileid'] === null ? null : (int)$row['fileid'],
 				];
-
 				$this->cache[$normalizedRow['id']] = $normalizedRow;
+				$this->idByNumericIdCache[$normalizedRow['numeric_id']] = $normalizedRow['id'];
 			}
+
+			$result->closeCursor();
 		}
 	}
 
 	/**
-	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int}|null
+	 * @param int[] $numericIds
 	 */
-	public function getStorageInfo(string $storageId): ?array {
-		if (!isset($this->cache[$storageId])) {
-			$builder = $this->connection->getQueryBuilder();
-			$query = $builder->select(['id', 'numeric_id', 'available', 'last_checked'])
-				->from('storages')
-				->where($builder->expr()->eq('id', $builder->createNamedParameter($storageId)));
+	public function loadForNumericIds(array $numericIds): void {
+		$builder = $this->connection->getQueryBuilder();
+		$query = $this->selectStorageInfo($builder);
+		$query->where($builder->expr()->in('numeric_id', $builder->createParameter('ids'), IQueryBuilder::PARAM_STR_ARRAY));
+		foreach (array_chunk($numericIds, IQueryBuilder::MAX_IN_PARAMETERS) as $chunk) {
+			$query->setParameter('ids', $chunk, IQueryBuilder::PARAM_STR_ARRAY);
 
 			$result = $query->executeQuery();
-			$row = $result->fetchAssociative();
-			$result->closeCursor();
-
-			if ($row !== false) {
+			while ($row = $result->fetch()) {
 				$normalizedRow = [
 					'id' => (string)$row['id'],
 					'numeric_id' => (int)$row['numeric_id'],
 					'available' => (bool)$row['available'],
 					'last_checked' => (int)$row['last_checked'],
+					'fileid' => $row['fileid'] === null ? null : (int)$row['fileid'],
 				];
-
-				$this->cache[$storageId] = $normalizedRow;
-				$this->numericIdCache[$normalizedRow['numeric_id']] = $normalizedRow;
+				$this->cache[$normalizedRow['id']] = $normalizedRow;
+				$this->idByNumericIdCache[$normalizedRow['numeric_id']] = $normalizedRow['id'];
 			}
+
+			$result->closeCursor();
+		}
+	}
+
+	/**
+	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int, fileid: ?int}|null
+	 */
+	public function getStorageInfo(string $storageId): ?array {
+		$storageId = Storage::adjustStorageId($storageId);
+		if (!isset($this->cache[$storageId])) {
+			$this->loadForStorageIds([$storageId]);
 		}
 
 		return $this->cache[$storageId] ?? null;
 	}
 
 	/**
-	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int}|null
+	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int, fileid: ?int}|null
 	 */
 	public function getStorageInfoByNumericId(int $numericId): ?array {
-		if (!isset($this->numericIdCache[$numericId])) {
-			$builder = $this->connection->getQueryBuilder();
-			$query = $builder->select(['id', 'numeric_id', 'available', 'last_checked'])
-				->from('storages')
-				->where($builder->expr()->eq('numeric_id', $builder->createNamedParameter($numericId)));
-
-			$result = $query->executeQuery();
-			$row = $result->fetchAssociative();
-			$result->closeCursor();
-
-			if ($row !== false) {
-				$normalizedRow = [
-					'id' => (string)$row['id'],
-					'numeric_id' => (int)$row['numeric_id'],
-					'available' => (bool)$row['available'],
-					'last_checked' => (int)$row['last_checked'],
-				];
-
-				$this->numericIdCache[$numericId] = $normalizedRow;
-				$this->cache[$normalizedRow['id']] = $normalizedRow;
-			}
+		if (!isset($this->idByNumericIdCache[$numericId])) {
+			$this->loadForNumericIds([$numericId]);
 		}
 
-		return $this->numericIdCache[$numericId] ?? null;
+		$storageId = $this->idByNumericIdCache[$numericId] ?? null;
+		return $storageId === null ? null : $this->cache[$storageId];
+	}
+
+	/**
+	 * Get the string id for the storage
+	 *
+	 * @param int $numericId
+	 * @return string|null either the storage id string or null if the numeric id is not known
+	 */
+	public function getStorageId($numericId) {
+		if (!isset($this->idByNumericIdCache[$numericId])) {
+			$this->loadForNumericIds([$numericId]);
+		}
+
+		return $this->idByNumericIdCache[$numericId] ?? null;
 	}
 
 	public function clearCache(): void {
 		$this->cache = [];
+		$this->idByNumericIdCache = [];
 	}
 }
