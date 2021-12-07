@@ -28,37 +28,78 @@ class StorageGlobal {
 	/** @var array<string, array{id: string, numeric_id: int, available: bool, last_checked: int}> */
 	private array $cache = [];
 
-	/** @var array<int, array{id: string, numeric_id: int, available: bool, last_checked: int}> */
-	private array $numericIdCache = [];
+	/** @var string[] */
+	private $idByNumericIdCache = [];
 
 	public function __construct(
 		private readonly IDBConnection $connection,
 	) {
 	}
 
+	static private function selectStorageInfo($builder)
+	{
+		return $builder->select(['id', 'numeric_id', 'available', 'last_checked', 'fileid'])
+			->from('storages', 'storages')
+			->leftJoin(
+				'storages', 'filecache', 'fc',
+				$builder->expr()->andX(
+					$builder->expr()->eq('storages.numeric_id', 'fc.storage'),
+					$builder->expr()->eq('fc.path', $builder->createNamedParameter(''))
+				));
+	}
+
 	/**
 	 * @param string[] $storageIds
 	 */
-	public function loadForStorageIds(array $storageIds): void {
-		$builder = $this->connection->getQueryBuilder();
-		$query = $builder->select(['id', 'numeric_id', 'available', 'last_checked'])
-			->from('storages')
-			->where($builder->expr()->in('id', $builder->createParameter('ids'), IQueryBuilder::PARAM_STR_ARRAY));
+	public function loadForStorageIds(array $storageIds) {
 
+		$storageIds = array_values(array_map([Storage::class, 'adjustStorageId'], $storageIds));
+
+		$builder = $this->connection->getQueryBuilder();
+		$query = self::selectStorageInfo($builder);
+		$query->where($builder->expr()->in('id', $builder->createParameter('ids'), IQueryBuilder::PARAM_STR_ARRAY));
 		foreach (array_chunk($storageIds, IQueryBuilder::MAX_IN_PARAMETERS) as $chunk) {
 			$query->setParameter('ids', $chunk, IQueryBuilder::PARAM_STR_ARRAY);
 
 			$result = $query->executeQuery();
-			while (($row = $result->fetch()) !== false) {
+			while ($row = $result->fetch()) {
 				$normalizedRow = [
 					'id' => (string)$row['id'],
 					'numeric_id' => (int)$row['numeric_id'],
 					'available' => (bool)$row['available'],
 					'last_checked' => (int)$row['last_checked'],
+					'fileid' => (int)$row['fileid'],
 				];
-
 				$this->cache[$normalizedRow['id']] = $normalizedRow;
+				$this->idByNumericIdCache[$normalizedRow['numeric_id']] = $normalizedRow['id'];
 			}
+			$result->closeCursor();
+		}
+	}
+
+	/**
+	 * @param string[] $numericIds
+	 */
+	public function loadForNumericIds(array $numericIds) {
+		$builder = $this->connection->getQueryBuilder();
+		$query = self::selectStorageInfo($builder);
+		$query->where($builder->expr()->in('numeric_id', $builder->createParameter('ids'), IQueryBuilder::PARAM_STR_ARRAY));
+		foreach (array_chunk($numericIds, IQueryBuilder::MAX_IN_PARAMETERS) as $chunk) {
+			$query->setParameter('ids', $chunk, IQueryBuilder::PARAM_STR_ARRAY);
+
+			$result = $query->executeQuery();
+			while ($row = $result->fetch()) {
+				$normalizedRow = [
+					'id' => (string)$row['id'],
+					'numeric_id' => (int)$row['numeric_id'],
+					'available' => (bool)$row['available'],
+					'last_checked' => (int)$row['last_checked'],
+					'fileid' => (int)$row['fileid'],
+				];
+				$this->cache[$normalizedRow['id']] = $normalizedRow;
+				$this->idByNumericIdCache[$normalizedRow['numeric_id']] = $normalizedRow['id'];
+			}
+			$result->closeCursor();
 		}
 	}
 
@@ -66,27 +107,9 @@ class StorageGlobal {
 	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int}|null
 	 */
 	public function getStorageInfo(string $storageId): ?array {
+		$storageId = Storage::adjustStorageId($storageId);
 		if (!isset($this->cache[$storageId])) {
-			$builder = $this->connection->getQueryBuilder();
-			$query = $builder->select(['id', 'numeric_id', 'available', 'last_checked'])
-				->from('storages')
-				->where($builder->expr()->eq('id', $builder->createNamedParameter($storageId)));
-
-			$result = $query->executeQuery();
-			$row = $result->fetchAssociative();
-			$result->closeCursor();
-
-			if ($row !== false) {
-				$normalizedRow = [
-					'id' => (string)$row['id'],
-					'numeric_id' => (int)$row['numeric_id'],
-					'available' => (bool)$row['available'],
-					'last_checked' => (int)$row['last_checked'],
-				];
-
-				$this->cache[$storageId] = $normalizedRow;
-				$this->numericIdCache[$normalizedRow['numeric_id']] = $normalizedRow;
-			}
+			$this->loadForStorageIds([$storageId]);
 		}
 
 		return $this->cache[$storageId] ?? null;
@@ -97,32 +120,28 @@ class StorageGlobal {
 	 */
 	public function getStorageInfoByNumericId(int $numericId): ?array {
 		if (!isset($this->numericIdCache[$numericId])) {
-			$builder = $this->connection->getQueryBuilder();
-			$query = $builder->select(['id', 'numeric_id', 'available', 'last_checked'])
-				->from('storages')
-				->where($builder->expr()->eq('numeric_id', $builder->createNamedParameter($numericId)));
-
-			$result = $query->executeQuery();
-			$row = $result->fetchAssociative();
-			$result->closeCursor();
-
-			if ($row !== false) {
-				$normalizedRow = [
-					'id' => (string)$row['id'],
-					'numeric_id' => (int)$row['numeric_id'],
-					'available' => (bool)$row['available'],
-					'last_checked' => (int)$row['last_checked'],
-				];
-
-				$this->numericIdCache[$numericId] = $normalizedRow;
-				$this->cache[$normalizedRow['id']] = $normalizedRow;
-			}
+			$this->loadForNumericIds([$numericId]);
 		}
 
 		return $this->numericIdCache[$numericId] ?? null;
 	}
 
+	/**
+	 * Get the string id for the storage
+	 *
+	 * @param int $numericId
+	 * @return string|null either the storage id string or null if the numeric id is not known
+	 */
+	public function getStorageId($numericId)
+	{
+		if (!isset($this->idByNumericIdCache[$numericId])) {
+			$this->loadForNumericIds([$numericId]);
+		}
+		return $this->idByNumericIdCache[$numericId] ?? null;
+	}
+
 	public function clearCache(): void {
 		$this->cache = [];
+		$this->idByNumericIdCache = [];
 	}
 }
