@@ -78,4 +78,20 @@ interface ICachedMountInfo {
 	 * @since 28.0.0
 	 */
 	public function getKey(): string;
+
+	/**
+	 * Whether this mount point can be shared with others
+	 *
+	 * @return bool
+	 * @since 24.0.0
+	 */
+	public function getEnableSharing(): bool;
+
+	/**
+	 * Whether this mount point needs authentication
+	 *
+	 * @return bool
+	 * @since 24.0.0
+	 */
+	public function getAuthenticated(): bool;
 }
