@@ -1,7 +1,7 @@
 <?php
 
 /**
- * SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-FileCopyrightText: 2016-2025 Nextcloud GmbH and Nextcloud contributors
  * SPDX-FileCopyrightText: 2016 ownCloud, Inc.
  * SPDX-License-Identifier: AGPL-3.0-only
  */
@@ -24,6 +24,8 @@ class CachedMountInfo implements ICachedMountInfo {
 		protected string $mountProvider,
 		protected ?int $mountId = null,
 		protected string $rootInternalPath = '',
+		protected bool $enableSharing = true,
+		protected bool $authenticated = false
 	) {
 		if (strlen($this->mountProvider) > 128) {
 			throw new \Exception("Mount provider $this->mountProvider name exceeds the limit of 128 characters");
@@ -100,5 +102,25 @@ class CachedMountInfo implements ICachedMountInfo {
 	#[\Override]
 	public function getKey(): string {
 		return $this->key;
+	}
+
+	/**
+	 * Whether this mount point can be shared with others
+	 *
+	 * @return bool
+	 * @since 24.0.0
+	 */
+	public function getEnableSharing(): bool {
+		return (bool)$this->enableSharing;
+	}
+
+	/**
+	 * Whether this mount point needs authentication
+	 *
+	 * @return bool
+	 * @since 24.0.0
+	 */
+	public function getAuthenticated(): bool {
+		return (bool)$this->authenticated;
 	}
 }
