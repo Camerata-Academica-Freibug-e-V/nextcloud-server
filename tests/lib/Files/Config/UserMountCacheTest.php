@@ -11,6 +11,7 @@ namespace Test\Files\Config;
 use OC\DB\Exceptions\DbalException;
 use OC\DB\QueryBuilder\Literal;
 use OC\Files\Cache\Cache;
+use OC\Files\Config\CachedMountInfo;
 use OC\Files\Config\UserMountCache;
 use OC\Files\Mount\MountPoint;
 use OC\Files\Storage\Storage;
@@ -125,6 +126,65 @@ class UserMountCacheTest extends TestCase {
 
 	private function keyForMount(MountPoint $mount): string {
 		return $mount->getStorageRootId() . '::' . $mount->getMountPoint();
+	}
+
+	public function testMountFiltersDoNotReuseOrPopulateUnfilteredCache(): void {
+		$user = $this->userManager->get('u1');
+		foreach ([false, true] as $shareable) {
+			foreach ([false, true] as $authenticated) {
+				$mountPoint = '/filters/' . (int)$shareable . '/' . (int)$authenticated . '/';
+				$query = $this->connection->getQueryBuilder();
+				$query->insert('mounts')->values([
+					'storage_id' => $query->createNamedParameter(10, IQueryBuilder::PARAM_INT),
+					'root_id' => $query->createNamedParameter(20, IQueryBuilder::PARAM_INT),
+					'user_id' => $query->createNamedParameter($user->getUID()),
+					'mount_point' => $query->createNamedParameter($mountPoint),
+					'mount_point_hash' => $query->createNamedParameter(hash('xxh128', $mountPoint)),
+					'enable_sharing' => $query->createNamedParameter((int)$shareable, IQueryBuilder::PARAM_INT),
+					'authenticated' => $query->createNamedParameter((int)$authenticated, IQueryBuilder::PARAM_INT),
+				])->executeStatement();
+			}
+		}
+
+		foreach ([false, true] as $cached) {
+			$this->clearCache();
+			if ($cached) {
+				$this->assertCount(4, $this->cache->getMountsForUser($user));
+			}
+			foreach ([false, true, null] as $shareable) {
+				foreach ([false, true, null] as $authenticated) {
+					$mounts = $this->cache->getMountsForUser($user, $shareable, $authenticated);
+					$this->assertCount(($shareable === null ? 2 : 1) * ($authenticated === null ? 2 : 1), $mounts);
+					foreach ($mounts as $key => $mount) {
+						$this->assertSame($mount->getKey(), $key);
+						if ($shareable !== null) {
+							$this->assertSame($shareable, $mount->getEnableSharing());
+						}
+						if ($authenticated !== null) {
+							$this->assertSame($authenticated, $mount->getAuthenticated());
+						}
+					}
+				}
+			}
+			$this->assertCount(4, $this->cache->getMountsForUser($user));
+		}
+	}
+
+	public function testUpdateMountFlags(): void {
+		$user = $this->userManager->get('u1');
+		[$storage, $rootId] = $this->getStorage(10);
+		$this->cache->registerMounts($user, [new MountPoint($storage, '/flags/')]);
+		foreach ([false, true] as $shareable) {
+			foreach ([false, true] as $authenticated) {
+				$mount = new CachedMountInfo($user, 10, $rootId, '/flags/', '', null, '', $shareable, $authenticated);
+				$this->invokePrivate($this->cache, 'updateCachedMount', [$mount]);
+				$this->clearCache();
+				$mounts = $this->cache->getMountsForUser($user, $shareable, $authenticated);
+				$this->assertCount(1, $mounts);
+				$this->assertSame($shareable, $mounts[$mount->getKey()]->getEnableSharing());
+				$this->assertSame($authenticated, $mounts[$mount->getKey()]->getAuthenticated());
+			}
+		}
 	}
 
 	public function testNewMounts(): void {

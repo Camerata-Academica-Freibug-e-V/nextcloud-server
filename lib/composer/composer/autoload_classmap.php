@@ -1705,6 +1705,7 @@ return array(
     'OC\\Core\\Migrations\\Version24000Date20220202150027' => $baseDir . '/core/Migrations/Version24000Date20220202150027.php',
     'OC\\Core\\Migrations\\Version24000Date20220404230027' => $baseDir . '/core/Migrations/Version24000Date20220404230027.php',
     'OC\\Core\\Migrations\\Version24000Date20220425072957' => $baseDir . '/core/Migrations/Version24000Date20220425072957.php',
+    'OC\\Core\\Migrations\\Version24000Date20220607104807' => $baseDir . '/core/Migrations/Version24000Date20220607104807.php',
     'OC\\Core\\Migrations\\Version25000Date20220515204012' => $baseDir . '/core/Migrations/Version25000Date20220515204012.php',
     'OC\\Core\\Migrations\\Version25000Date20220602190540' => $baseDir . '/core/Migrations/Version25000Date20220602190540.php',
     'OC\\Core\\Migrations\\Version25000Date20220905140840' => $baseDir . '/core/Migrations/Version25000Date20220905140840.php',
