@@ -25,6 +25,7 @@ use OCP\AppFramework\OCS\OCSForbiddenException;
 use OCP\AppFramework\OCS\OCSNotFoundException;
 use OCP\AppFramework\OCSController;
 use OCP\Files\IRootFolder;
+use OCP\Group\Backend\INamedBackend;
 use OCP\Group\ISubAdmin;
 use OCP\IConfig;
 use OCP\IGroup;
@@ -118,6 +119,7 @@ class GroupsController extends AUserDataOCSController {
 				'disabled' => $group->countDisabled(),
 				'canAdd' => $group->canAddUser(),
 				'canRemove' => $group->canRemoveUser(),
+				'backends' => array_values($group->getBackendNames()),
 			];
 		}, $groups);
 
@@ -267,6 +269,7 @@ class GroupsController extends AUserDataOCSController {
 	 *
 	 * @param string $groupid ID of the group
 	 * @param string $displayname Display name of the group
+	 * @param string $backendName Name of the group backend
 	 * @return DataResponse<Http::STATUS_OK, list<empty>, array{}>
 	 * @throws OCSException
 	 *
@@ -274,7 +277,11 @@ class GroupsController extends AUserDataOCSController {
 	 */
 	#[AuthorizedAdminSetting(settings:Users::class)]
 	#[PasswordConfirmationRequired]
-	public function addGroup(string $groupid, string $displayname = ''): DataResponse {
+	public function addGroup(
+		string $groupid,
+		string $displayname = '',
+		string $backendName = '',
+	): DataResponse {
 		// Validate name
 		if (empty($groupid)) {
 			$this->logger->error('Group name not supplied', ['app' => 'provisioning_api']);
@@ -284,7 +291,24 @@ class GroupsController extends AUserDataOCSController {
 		if ($this->groupManager->groupExists($groupid)) {
 			throw new OCSException('group exists', 102);
 		}
-		$group = $this->groupManager->createGroup($groupid);
+		$groupInterface = null;
+		if (!empty($backendName)) {
+			foreach ($this->groupManager->getBackends() as $oneBackend) {
+				if ($oneBackend instanceof INamedBackend && $oneBackend->getBackendName() === $backendName) {
+					$groupInterface = $oneBackend;
+				}
+			}
+			if (empty($groupInterface)) {
+				$errorString = 'Requested group-backend "' . $backendName . '" does not exist';
+				$this->logger->error('Failed addGroup attempt: ' . $errorString . '.', ['app' => 'ocs_api']);
+				throw new OCSException($errorString, 102);
+			}
+		}
+		if (empty($groupInterface)) {
+			$group = $this->groupManager->createGroup($groupid);
+		} else {
+			$group = $this->groupManager->createGroupFromBackend($groupid, $groupInterface);
+		}
 		if ($group === null) {
 			throw new OCSException('Not supported by backend', 103);
 		}
