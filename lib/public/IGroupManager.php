@@ -78,6 +78,14 @@ interface IGroupManager {
 	public function createGroup($gid);
 
 	/**
+	 * @param string $gid
+	 * @param GroupInterface] $backend
+	 * @return \OCP\IGroup|null
+	 * @since 23.0.0
+	 */
+	public function createGroupFromBackend($gid, GroupInterface $backend);
+
+	/**
 	 * @param string $search
 	 * @param ?int $limit
 	 * @param ?int $offset
