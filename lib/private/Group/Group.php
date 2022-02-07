@@ -158,8 +158,12 @@ class Group implements IGroup {
 		}
 		foreach ($this->backends as $backend) {
 			if ($backend->implementsActions(\OC\Group\Backend::ADD_TO_GROUP)) {
-				/** @var IAddToGroupBackend $backend */
-				$backend->addToGroup($user->getUID(), $this->gid);
+				try {
+					/** @var IAddToGroupBackend $backend */
+					$backend->addToGroup($user->getUID(), $this->gid);
+				} catch (\Throwable $t) {
+					continue;
+				}
 				$this->users[$user->getUID()] = $user;
 
 				$this->dispatcher->dispatchTyped(new UserAddedEvent($this, $user));
