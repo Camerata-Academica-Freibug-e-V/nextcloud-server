@@ -211,7 +211,8 @@ class GroupsControllerTest extends \Test\TestCase {
 				'usercount' => 123,
 				'disabled' => 11,
 				'canAdd' => true,
-				'canRemove' => true
+				'canRemove' => true,
+				'backends' => [],
 			],
 			[
 				'id' => 'group2',
@@ -219,7 +220,8 @@ class GroupsControllerTest extends \Test\TestCase {
 				'usercount' => 123,
 				'disabled' => 11,
 				'canAdd' => true,
-				'canRemove' => true
+				'canRemove' => true,
+				'backends' => [],
 			]
 		]], $result->getData());
 	}

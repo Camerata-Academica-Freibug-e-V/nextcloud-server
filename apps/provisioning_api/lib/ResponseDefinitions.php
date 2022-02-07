@@ -86,6 +86,7 @@ namespace OCA\Provisioning_API;
  *     disabled: bool|int,
  *     canAdd: bool,
  *     canRemove: bool,
+ *     backends?: list<string>,
  * }
  */
 class ResponseDefinitions {
