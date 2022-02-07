@@ -280,6 +280,37 @@ class Manager extends PublicEmitter implements IGroupManager {
 	}
 
 	#[\Override]
+	/**
+	 * @param string $gid
+	 * @param GroupInterface] $backend
+	 * @return \OCP\IGroup|null
+	 */
+	public function createGroupFromBackend($gid, GroupInterface $backend) {
+		$group = $this->get($gid);
+		if ($group !== null) {
+			return $group;
+		}
+		if ($backend->implementsActions(Backend::CREATE_GROUP)) {
+			$this->emit('\OC\Group', 'preCreate', [$gid]);
+			$createdGroupId = $backend instanceof ICreateNamedGroupBackend
+				? $backend->createGroup($gid)
+				: (method_exists($backend, 'createGroup') && $backend->createGroup($gid) ? $gid : null);
+			if ($createdGroupId !== null) {
+				$group = $this->getGroupObject($createdGroupId);
+				$this->emit('\OC\Group', 'postCreate', [$group]);
+				return $group;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @param string $search
+	 * @param ?int $limit
+	 * @param ?int $offset
+	 * @return list<\OCP\IGroup>
+	 */
+	#[\Override]
 	public function search(string $search, ?int $limit = null, ?int $offset = 0) {
 		$groups = [];
 		foreach ($this->backends as $backend) {
