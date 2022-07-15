@@ -147,7 +147,7 @@ class HookConnector {
 
 	public function rename($arguments) {
 		$source = $this->getNodeForPath($arguments['oldpath']);
-		$target = $this->getNodeForPath($arguments['newpath']);
+		$target = $this->getNodeForPath($arguments['newpath'], $source instanceof Folder);
 		$this->root->emit('\OC\Files', 'preRename', [$source, $target]);
 		$this->dispatcher->dispatch('\OCP\Files::preRename', new GenericEvent([$source, $target]));
 
@@ -161,8 +161,8 @@ class HookConnector {
 	}
 
 	public function postRename($arguments) {
-		$source = $this->getNodeForPath($arguments['oldpath']);
 		$target = $this->getNodeForPath($arguments['newpath']);
+		$source = $this->getNodeForPath($arguments['oldpath'], $target instanceof Folder);
 		$this->root->emit('\OC\Files', 'postRename', [$source, $target]);
 		$this->dispatcher->dispatch('\OCP\Files::postRename', new GenericEvent([$source, $target]));
 
