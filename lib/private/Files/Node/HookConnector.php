@@ -14,6 +14,7 @@ use OC\Files\View;
 use OCP\EventDispatcher\GenericEvent;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\Exceptions\AbortedEventException;
+use OCP\Files\Events\Node\BeforeFolderCreatedEvent;
 use OCP\Files\Events\Node\BeforeNodeCopiedEvent;
 use OCP\Files\Events\Node\BeforeNodeCreatedEvent;
 use OCP\Files\Events\Node\BeforeNodeDeletedEvent;
@@ -21,6 +22,7 @@ use OCP\Files\Events\Node\BeforeNodeReadEvent;
 use OCP\Files\Events\Node\BeforeNodeRenamedEvent;
 use OCP\Files\Events\Node\BeforeNodeTouchedEvent;
 use OCP\Files\Events\Node\BeforeNodeWrittenEvent;
+use OCP\Files\Events\Node\FolderCreatedEvent;
 use OCP\Files\Events\Node\NodeCopiedEvent;
 use OCP\Files\Events\Node\NodeCreatedEvent;
 use OCP\Files\Events\Node\NodeDeletedEvent;
@@ -50,6 +52,9 @@ class HookConnector {
 
 		Util::connectHook('OC_Filesystem', 'create', $this, 'create');
 		Util::connectHook('OC_Filesystem', 'post_create', $this, 'postCreate');
+
+		Util::connectHook('OC_Filesystem', 'create_folder', $this, 'createFolder');
+		Util::connectHook('OC_Filesystem', 'post_create_folder', $this, 'postCreateFolder');
 
 		Util::connectHook('OC_Filesystem', 'delete', $this, 'delete');
 		Util::connectHook('OC_Filesystem', 'post_delete', $this, 'postDelete');
@@ -99,6 +104,24 @@ class HookConnector {
 		$this->dispatcher->dispatch('\OCP\Files::postCreate', new GenericEvent($node));
 
 		$event = new NodeCreatedEvent($node);
+		$this->dispatcher->dispatchTyped($event);
+	}
+
+	public function createFolder($arguments) {
+		$node = $this->getNodeForPath($arguments['path'], true);
+		$this->root->emit('\OC\Files', 'preCreateFolder', [$node]);
+		$this->dispatcher->dispatch('\OCP\Files::preCreateFolder', new GenericEvent($node));
+
+		$event = new BeforeFolderCreatedEvent($node);
+		$this->dispatcher->dispatchTyped($event);
+	}
+
+	public function postCreateFolder($arguments) {
+		$node = $this->getNodeForPath($arguments['path']);
+		$this->root->emit('\OC\Files', 'postCreateFolder', [$node]);
+		$this->dispatcher->dispatch('\OCP\Files::postCreateFolder', new GenericEvent($node));
+
+		$event = new FolderCreatedEvent($node);
 		$this->dispatcher->dispatchTyped($event);
 	}
 

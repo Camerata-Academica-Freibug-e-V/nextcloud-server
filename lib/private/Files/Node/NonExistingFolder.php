@@ -9,10 +9,19 @@
 namespace OC\Files\Node;
 
 use OCP\Files\Node;
+use OCP\Files\FileInfo;
 use OCP\Files\NotFoundException;
 use Override;
 
 class NonExistingFolder extends Folder {
+	public function getType() {
+		if ($this->fileInfo) {
+			return parent::getType();
+		} else {
+			return FileInfo::TYPE_FOLDER;
+		}
+	}
+
 	/**
 	 * @param string $newPath
 	 * @throws \OCP\Files\NotFoundException
