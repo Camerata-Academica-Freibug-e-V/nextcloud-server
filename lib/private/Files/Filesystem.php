@@ -97,6 +97,22 @@ class Filesystem {
 	public const signal_post_create = 'post_create';
 
 	/**
+	 * signal emitted before dir creation
+	 *
+	 * @param string $path
+	 * @param bool $run changing this flag to false in hook handler will cancel event
+	 */
+	public const signal_create_folder = 'create_folder';
+
+	/**
+	 * signal emitted after dir creation
+	 *
+	 * @param string $path
+	 * @param bool $run changing this flag to false in hook handler will cancel event
+	 */
+	public const signal_post_create_folder = 'post_create_folder';
+
+	/**
 	 * signal emits before file/dir copy
 	 *
 	 * @param string $oldpath
