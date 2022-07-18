@@ -8,9 +8,18 @@
 
 namespace OC\Files\Node;
 
+use OCP\Files\FileInfo;
 use OCP\Files\NotFoundException;
 
 class NonExistingFile extends File {
+	public function getType() {
+		if ($this->fileInfo) {
+			return parent::getType();
+		} else {
+			return FileInfo::TYPE_FILE;
+		}
+	}
+
 	/**
 	 * @param string $newPath
 	 * @throws \OCP\Files\NotFoundException
