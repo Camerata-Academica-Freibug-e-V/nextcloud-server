@@ -397,6 +397,8 @@ class MigrationService {
 				// The exception itself does not contain the name of the migration,
 				// so we wrap it here, to make debugging easier.
 				throw new \Exception('Database error when running migration ' . $version . ' for app ' . $this->getApp() . PHP_EOL . $e->getMessage(), 0, $e);
+			} catch (\Throwable $t) {
+				throw new \Exception('Error when running migration ' . $version . ' for app ' . $this->getApp() . PHP_EOL . $t->getMessage(), 0, $t);
 			}
 		}
 	}
@@ -472,9 +474,13 @@ class MigrationService {
 			$s = Server::get($class);
 		} catch (NotFoundExceptionInterface) {
 			if (class_exists($class)) {
-				$s = new $class();
+				try {
+					$s = new $class();
+				} catch (\Throwable $t) {
+					throw new \RuntimeException("Cannot default-construct migration '$class'", $e->getCode(), $e);
+				}
 			} else {
-				throw new \InvalidArgumentException("Migration step '$class' is unknown");
+				throw new \InvalidArgumentException("Migration step '$class' is unknown", $e->getCode(), $e);
 			}
 		}
 
