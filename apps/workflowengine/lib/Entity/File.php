@@ -64,6 +64,9 @@ class File implements IEntity, IDisplayText, IUrl, IIcon, IContextPortation {
 	#[\Override]
 	public function getEvents(): array {
 		return [
+			new GenericEntityEvent($this->l10n->t('File added to cache'), self::EVENT_NAMESPACE . 'addToCache'),
+			new GenericEntityEvent($this->l10n->t('File removed from cache'), self::EVENT_NAMESPACE . 'removeFromCache'),
+			new GenericEntityEvent($this->l10n->t('File cache updated'), self::EVENT_NAMESPACE . 'updateCache'),
 			new GenericEntityEvent($this->l10n->t('File created'), self::EVENT_NAMESPACE . 'postCreate'),
 			new GenericEntityEvent($this->l10n->t('File updated'), self::EVENT_NAMESPACE . 'postWrite'),
 			new GenericEntityEvent($this->l10n->t('File renamed'), self::EVENT_NAMESPACE . 'postRename'),
@@ -134,6 +137,9 @@ class File implements IEntity, IDisplayText, IUrl, IIcon, IContextPortation {
 			case self::EVENT_NAMESPACE . 'postWrite':
 			case self::EVENT_NAMESPACE . 'postDelete':
 			case self::EVENT_NAMESPACE . 'postTouch':
+			case self::EVENT_NAMESPACE . 'addToCache':
+			case self::EVENT_NAMESPACE . 'removeFromCache':
+			case self::EVENT_NAMESPACE . 'updateCache':
 				return $this->event->getSubject();
 			case self::EVENT_NAMESPACE . 'postRename':
 			case self::EVENT_NAMESPACE . 'postCopy':
