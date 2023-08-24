@@ -12,6 +12,7 @@ return array(
     'OCA\\WorkflowEngine\\Check\\AbstractStringCheck' => $baseDir . '/../lib/Check/AbstractStringCheck.php',
     'OCA\\WorkflowEngine\\Check\\FileMimeType' => $baseDir . '/../lib/Check/FileMimeType.php',
     'OCA\\WorkflowEngine\\Check\\FileName' => $baseDir . '/../lib/Check/FileName.php',
+    'OCA\\WorkflowEngine\\Check\\FilePath' => $baseDir . '/../lib/Check/FilePath.php',
     'OCA\\WorkflowEngine\\Check\\FileSize' => $baseDir . '/../lib/Check/FileSize.php',
     'OCA\\WorkflowEngine\\Check\\FileSystemTags' => $baseDir . '/../lib/Check/FileSystemTags.php',
     'OCA\\WorkflowEngine\\Check\\RequestRemoteAddress' => $baseDir . '/../lib/Check/RequestRemoteAddress.php',
