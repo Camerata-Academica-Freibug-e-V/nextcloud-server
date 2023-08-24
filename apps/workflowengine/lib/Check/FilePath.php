@@ -1,0 +1,98 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * SPDX-FileCopyrightText: 2023 Claus-Justus Heine
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ *
+ * @copyright Copyright (c) 2023 Claus-Justus Heine <himself@claus-justus-heine.de>
+ *
+ * @author Arthur Schiwon <blizzz@arthur-schiwon.de>
+ * @author Daniel Kesselberg <mail@danielkesselberg.de>
+ * @author szaimen <szaimen@e.mail.de>
+ * @author Claus-Justus Heine <himself@claus-justus-heine.de>
+ *
+ * @license GNU AGPL version 3 or any later version
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+namespace OCA\WorkflowEngine\Check;
+
+use OCA\WorkflowEngine\Entity\File;
+use OCP\Files\Mount\IMountManager;
+use OCP\IL10N;
+use OCP\IRequest;
+use OCP\WorkflowEngine\IFileCheck;
+
+class FilePath extends AbstractStringCheck implements IFileCheck {
+	use TFileCheck;
+
+	/** @var IRequest */
+	protected $request;
+	/** @var IMountManager */
+	private $mountManager;
+
+	/**
+	 * @param IL10N $l
+	 * @param IRequest $request
+	 */
+	public function __construct(IL10N $l, IRequest $request, IMountManager $mountManager) {
+		parent::__construct($l);
+		$this->request = $request;
+		$this->mountManager = $mountManager;
+	}
+
+	/**
+	 * @return string
+	 */
+	#[\Override]
+	protected function getActualValue(): string {
+		$mountPoints = $this->mountManager->findByStorageId($this->storage->getId());
+		if (empty($mountPoints)) {
+			return $this->path;
+		}
+		$mountPointPath = rtrim($mountPoints[0]->getMountPoint(), '/');
+		$result = $mountPointPath . '/' . ltrim($this->path, '/');
+
+		return $result;
+	}
+
+	/**
+	 * @param string $operator
+	 * @param string $checkValue
+	 * @param string $actualValue
+	 * @return bool
+	 */
+	#[\Override]
+	protected function executeStringCheck($operator, $checkValue, $actualValue): bool {
+		if ($operator === 'is' || $operator === '!is') {
+			$checkValue = mb_strtolower($checkValue);
+			$actualValue = mb_strtolower($actualValue);
+		}
+		return parent::executeStringCheck($operator, $checkValue, $actualValue);
+	}
+
+	#[\Override]
+	public function supportedEntities(): array {
+		return [ File::class ];
+	}
+
+	#[\Override]
+	public function isAvailableForScope(int $scope): bool {
+		return true;
+	}
+}
