@@ -37,3 +37,24 @@ clean:
 
 clean-git: clean
 	git checkout -- dist
+
+commit-cjh:
+	git commit -m "Update package-lock.json" package-lock.json || true
+	git add dist
+	git add\
+ apps/settings/css/settings.css\
+ apps/settings/css/settings.css.map\
+ core/css/server.css\
+ core/css/server.css.map\
+ core/css/tooltip.css\
+ core/css/tooltip.css.map
+	git commit -m "Update assets" || true
+	git commit -m "Update 3rdparty/ submodule after bugfix" 3rdparty/ || true
+
+occ-upgrade:
+	./occ upgrade
+	./occ app:update --all
+	./occ maintenance:update:htaccess
+	./occ maintenance:mimetype:update-js
+	./occ maintenance:mode --off
+	chmod g+w config/config.php
