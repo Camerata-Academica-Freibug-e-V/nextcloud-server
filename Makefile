@@ -6,6 +6,9 @@ all: clean dev-setup build-js-production
 dev-setup: clean npm-init
 
 npm-init:
+	npm install
+	npm audit fix || true
+	npm update browserslist
 	npm ci
 
 npm-update:
