@@ -644,6 +644,11 @@ class User_LDAP extends BackendUtility implements IUserBackend, UserInterface, I
 					// the NC user creation work flow requires a know user id up front
 					$uuid = $this->access->getUUID($dn, true);
 					if (is_string($uuid)) {
+						$user = $this->access->userManager->get($username);
+						if ($user instanceof OfflineUser) {
+							$user->unmark(); // undelete
+							$this->access->userManager->invalidate($username);
+						}
 						$this->access->mapAndAnnounceIfApplicable(
 							$this->access->getUserMapper(),
 							$dn,
