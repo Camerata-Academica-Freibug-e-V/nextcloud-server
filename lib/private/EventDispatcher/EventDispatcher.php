@@ -19,6 +19,7 @@ use OCP\EventDispatcher\IEventDispatcher;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher as SymfonyDispatcher;
+use Throwable;
 use function get_class;
 
 class EventDispatcher implements IEventDispatcher {
@@ -26,6 +27,7 @@ class EventDispatcher implements IEventDispatcher {
 		private SymfonyDispatcher $dispatcher,
 		private ContainerInterface $container,
 		private LoggerInterface $logger,
+		private ListenerExceptionPolicy $exceptionPolicy = new ListenerExceptionPolicy(),
 	) {
 		// inject the event dispatcher into the logger
 		// this is done here because there is a cyclic dependency between the event dispatcher and logger
@@ -54,7 +56,8 @@ class EventDispatcher implements IEventDispatcher {
 		$listener = new ServiceEventListener(
 			$this->container,
 			$className,
-			$this->logger
+			$this->logger,
+			$this->exceptionPolicy,
 		);
 
 		$this->addListener($eventName, $listener, $priority);
@@ -71,13 +74,23 @@ class EventDispatcher implements IEventDispatcher {
 	#[\Override]
 	public function dispatch(string $eventName,
 		Event $event): void {
-		$this->dispatcher->dispatch($event, $eventName);
+		try {
+			$this->dispatcher->dispatch($event, $eventName);
 
-		if ($event instanceof ABroadcastedEvent && !$event->isPropagationStopped()) {
-			// Propagate broadcast
-			$this->dispatch(
-				IBroadcastEvent::class,
-				new BroadcastEvent($event)
+			if ($event instanceof ABroadcastedEvent && !$event->isPropagationStopped()) {
+				// Propagate broadcast
+				$this->dispatch(
+					IBroadcastEvent::class,
+					new BroadcastEvent($event)
+				);
+			}
+		} catch (Throwable $t) {
+			if ($this->exceptionPolicy->mustPropagate($event, $t)) {
+				throw $t;
+			}
+			$this->logger->error(
+				'Exception in event handler',
+				[ 'exception' => new \Exception('Broadcasting ' . get_class($event) . ' failed.', 0, $t) ],
 			);
 		}
 	}
