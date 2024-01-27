@@ -52,6 +52,7 @@ use OC\Diagnostics\QueryLogger;
 use OC\Encryption\File;
 use OC\Encryption\Keys\Storage;
 use OC\EventDispatcher\EventDispatcher;
+use OC\EventDispatcher\IsolatingEventDispatcher;
 use OC\Federation\CloudFederationFactory;
 use OC\Federation\CloudFederationProviderManager;
 use OC\Federation\CloudIdManager;
@@ -1006,6 +1007,7 @@ class Server extends ServerContainer implements IServerContainer {
 			);
 		});
 		$this->registerAlias(IEventDispatcher::class, EventDispatcher::class);
+		$this->registerAlias(\Symfony\Component\EventDispatcher\EventDispatcher::class, IsolatingEventDispatcher::class);
 
 		/** @deprecated 35.0.0 */
 		$this->registerDeprecatedAlias('CryptoWrapper', CryptoWrapper::class);
