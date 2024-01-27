@@ -1918,6 +1918,8 @@ class ComposerStaticInit749170dad3f5e7f9ca158f5a9f04f6a2
         'OC\\Encryption\\Update' => __DIR__ . '/../../..' . '/lib/private/Encryption/Update.php',
         'OC\\Encryption\\Util' => __DIR__ . '/../../..' . '/lib/private/Encryption/Util.php',
         'OC\\EventDispatcher\\EventDispatcher' => __DIR__ . '/../../..' . '/lib/private/EventDispatcher/EventDispatcher.php',
+        'OC\\EventDispatcher\\IsolatingEventDispatcher' => __DIR__ . '/../../..' . '/lib/private/EventDispatcher/IsolatingEventDispatcher.php',
+        'OC\\EventDispatcher\\ListenerExceptionPolicy' => __DIR__ . '/../../..' . '/lib/private/EventDispatcher/ListenerExceptionPolicy.php',
         'OC\\EventDispatcher\\ServiceEventListener' => __DIR__ . '/../../..' . '/lib/private/EventDispatcher/ServiceEventListener.php',
         'OC\\EventSource' => __DIR__ . '/../../..' . '/lib/private/EventSource.php',
         'OC\\EventSourceFactory' => __DIR__ . '/../../..' . '/lib/private/EventSourceFactory.php',

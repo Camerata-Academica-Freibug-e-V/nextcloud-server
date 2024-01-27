@@ -1877,6 +1877,8 @@ return array(
     'OC\\Encryption\\Update' => $baseDir . '/lib/private/Encryption/Update.php',
     'OC\\Encryption\\Util' => $baseDir . '/lib/private/Encryption/Util.php',
     'OC\\EventDispatcher\\EventDispatcher' => $baseDir . '/lib/private/EventDispatcher/EventDispatcher.php',
+    'OC\\EventDispatcher\\IsolatingEventDispatcher' => $baseDir . '/lib/private/EventDispatcher/IsolatingEventDispatcher.php',
+    'OC\\EventDispatcher\\ListenerExceptionPolicy' => $baseDir . '/lib/private/EventDispatcher/ListenerExceptionPolicy.php',
     'OC\\EventDispatcher\\ServiceEventListener' => $baseDir . '/lib/private/EventDispatcher/ServiceEventListener.php',
     'OC\\EventSource' => $baseDir . '/lib/private/EventSource.php',
     'OC\\EventSourceFactory' => $baseDir . '/lib/private/EventSourceFactory.php',
