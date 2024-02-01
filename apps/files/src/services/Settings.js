@@ -22,7 +22,7 @@ export default class Settings {
 	 */
 	register(view) {
 		if (this._settings.filter((e) => e.name === view.name).length > 0) {
-			logger.error('A setting with the same name is already registered')
+			logger.error('A setting with the same name is already registered', e.name, e, view)
 			return false
 		}
 		this._settings.push(view)
