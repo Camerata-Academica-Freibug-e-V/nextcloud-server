@@ -162,7 +162,7 @@ class Group implements IGroup {
 					/** @var IAddToGroupBackend $backend */
 					$backend->addToGroup($user->getUID(), $this->gid);
 				} catch (\Throwable $t) {
-					continue;
+					throw new \Exception('Backend cannot add user exception ' . get_class($backend) . ' USER ' . $user->getUID(), 0, $t);
 				}
 				$this->users[$user->getUID()] = $user;
 
