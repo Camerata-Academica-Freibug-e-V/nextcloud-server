@@ -471,7 +471,7 @@ class ManagerTest extends TestCase {
 			->with(BACKEND::COUNT_USERS)
 			->willReturn(true);
 
-		$backend->expects($this->once())
+		$backend->expects($this->exactly(2))
 			->method('getBackendName')
 			->willReturn('Mock_Test_Util_User_Dummy');
 
