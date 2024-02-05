@@ -115,34 +115,42 @@ class Manager extends PublicEmitter implements IUserManager {
 
 		$this->backends[] = $backend;
 
-		// order the backends in the way they are used in self::createUser()
-		//
-		// First come extra-backends with createUser() facility, then
-		// the local data-base backend, then all other backends,
-		// each class sorted by their name.
-		//
-		$localBackends = [];
-		$createUserBackends = [];
-		$otherBackends = [];
+		// order the backends in a consistent manner in order to have always
+		// the same backend in all methods
+		$backendNames = [];
+		$backendPriorities = $this->config->getSystemValue('user_backend_priorities', []);
 		foreach ($this->backends as $backend) {
+			$backendClassName = get_class($backend);
 			if ($backend instanceof IUserBackend) {
 				$name = $backend->getBackendName();
 			} else {
-				$name = get_class($backend);
+				$name = $backendClassName;
 			}
-			if ($backend instanceof Database) {
-				$localBackends[$name] = $backend;
-			} else if ($backend->implementsActions(Backend::CREATE_USER)) {
-				$createUserBackends[$name] = $backend;
-			} else {
-				$otherBackends[$name] = $backend;
-			}
+			$backendNames[$backendClassName] = $name;
+			$backendPriorities[$name] = $backendPriorities[$name] ??
+				(($backend instanceof Database) ? PHP_INT_MIN : 0);
 		}
-		ksort($localBackends);
-		ksort($createUserBackends);
-		ksort($otherBackends);
+		usort(
+			$this->backends,
+			function($left, $right) use ($backendPriorities, $backendNames) {
+				$createUserResult =
+					- (int)$left->implementsActions(Backend::CREATE_USER)
+					+ (int)$right->implementsActions(Backend::CREATE_USER);
+				if ($createUserResult) {
+					return $createUserResult;
+				}
+				$leftClass = get_class($left);
+				$leftName = $backendNames[$leftClass];
+				$leftPriority = $backendPriorities[$leftName];
 
-		$this->backends = array_merge($createUserBackends, $localBackends, $otherBackends);
+				$rightClass = get_class($right);
+				$rightName = $backendNames[$rightClass];
+				$rightPriority = $backendPriorities[$rightName];
+
+				$priorityResult = (int)($leftPriority < $rightPriority) - (int)($leftPriority > $rightPriority);
+				return $priorityResult ?: strcmp($leftName,  $rightName);
+			}
+		);
 	}
 
 	#[\Override]
