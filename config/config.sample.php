@@ -195,6 +195,17 @@ $CONFIG = [
 	'installed' => false,
 
 	/**
+         * Curstom priorities for user (and group) backends. Backends with higher
+         * priorities are preferred. Backends not listed here have priority
+         * 0. Backends which are not able to create users come after backends which
+         * are able to do so.
+         */
+	'user_backend_priorities' => [
+		'LDAP' => 1000,
+		'FOOBAR' => -100,
+	],
+
+	/**
 	 * User Experience
 	 *
 	 * These optional parameters control some aspects of the user interface. Default
