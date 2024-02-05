@@ -494,11 +494,10 @@ class ManagerTest extends TestCase {
 			->method('countUsers')
 			->willReturn(7);
 
-		$backend1->expects($this->once())
+		$backend1->expects($this->exactly(2))
 			->method('implementsActions')
-			->with(BACKEND::COUNT_USERS)
-			->willReturn(true);
-		$backend1->expects($this->once())
+			->willReturnCallback(fn (int $action): bool => $action === BACKEND::COUNT_USERS);
+		$backend1->expects($this->exactly(3))
 			->method('getBackendName')
 			->willReturn('Mock_Test_Util_User_Dummy');
 
@@ -507,11 +506,10 @@ class ManagerTest extends TestCase {
 			->method('countUsers')
 			->willReturn(16);
 
-		$backend2->expects($this->once())
+		$backend2->expects($this->exactly(2))
 			->method('implementsActions')
-			->with(BACKEND::COUNT_USERS)
-			->willReturn(true);
-		$backend2->expects($this->once())
+			->willReturnCallback(fn (int $action): bool => $action === BACKEND::COUNT_USERS);
+		$backend2->expects($this->exactly(2))
 			->method('getBackendName')
 			->willReturn('Mock_Test_Util_User_Dummy');
 
