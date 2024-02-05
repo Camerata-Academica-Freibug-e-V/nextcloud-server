@@ -15,12 +15,14 @@ use OCA\Settings\Settings\Admin\Users;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\Group\Backend\IBatchMethodsBackend;
 use OCP\Group\Backend\ICreateNamedGroupBackend;
+use OCP\Group\Backend\INamedBackend;
 use OCP\Group\Backend\IGroupDetailsBackend;
 use OCP\Group\Events\BeforeGroupCreatedEvent;
 use OCP\Group\Events\GroupCreatedEvent;
 use OCP\GroupInterface;
 use OCP\ICacheFactory;
 use OCP\IDBConnection;
+use OCP\IConfig;
 use OCP\IGroup;
 use OCP\IGroupManager;
 use OCP\IUser;
@@ -63,6 +65,7 @@ class Manager extends PublicEmitter implements IGroupManager {
 		ICacheFactory $cacheFactory,
 		private IRemoteAddress $remoteAddress,
 		private IUserSession $userSession,
+		private IConfig $config,
 	) {
 		$this->displayNameCache = new DisplayNameCache($cacheFactory, $this);
 
@@ -103,6 +106,45 @@ class Manager extends PublicEmitter implements IGroupManager {
 	#[\Override]
 	public function addBackend($backend) {
 		$this->backends[] = $backend;
+
+		// order the backends in a consistent manner in order to have always
+		// the same backend in all methods
+		$backendNames = [];
+		$backendPriorities = $this->config->getSystemValue('user_backend_priorities', []);
+		foreach ($this->backends as $backend) {
+			$backendClassName = get_class($backend);
+			if ($backend instanceof INamedBackend) {
+				$name = $backend->getBackendName();
+			} else {
+				$name = $backendClassName;
+			}
+			$backendNames[$backendClassName] = $name;
+			$backendPriorities[$name] = $backendPriorities[$name] ??
+				(($backend instanceof Database) ? PHP_INT_MIN : 0);
+		}
+
+		usort(
+			$this->backends,
+			function($left, $right) use ($backendPriorities, $backendNames) {
+				$createUserResult =
+					- (int)$left->implementsActions(Backend::CREATE_GROUP)
+					+ (int)$right->implementsActions(Backend::CREATE_GROUP);
+				if ($createUserResult) {
+					return $createUserResult;
+				}
+				$leftClass = get_class($left);
+				$leftName = $backendNames[$leftClass];
+				$leftPriority = $backendPriorities[$leftName];
+
+				$rightClass = get_class($right);
+				$rightName = $backendNames[$rightClass];
+				$rightPriority = $backendPriorities[$rightName];
+
+				$priorityResult = (int)($leftPriority < $rightPriority) - (int)($leftPriority > $rightPriority);
+				return $priorityResult ?: strcmp($leftName,  $rightName);
+			}
+		);
+
 		$this->clearCaches();
 	}
 
