@@ -189,6 +189,7 @@ class ConfigAPIController extends OCSController {
 	 *     <useMemberOfToDetectMembership>1</useMemberOfToDetectMembership>
 	 *     <ldapExpertUsernameAttr>uid</ldapExpertUsernameAttr>
 	 *     <ldapExpertUsernameForce>0</ldapExpertUsernameForce>
+	 *     <ldapExpertGroupnameForce>0</ldapExpertGroupnameForce>
 	 *     <ldapExpertUUIDUserAttr>uid</ldapExpertUUIDUserAttr>
 	 *     <ldapExpertUUIDGroupAttr></ldapExpertUUIDGroupAttr>
 	 *     <lastJpegPhotoLookup>0</lastJpegPhotoLookup>

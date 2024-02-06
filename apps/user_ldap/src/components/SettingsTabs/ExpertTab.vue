@@ -40,10 +40,22 @@
 			<p id="ldap_expert_username_force">
 				{{ t('user_ldap', 'Dangerous. Stick to the internal username even in case of conflicts. This will sort of transfer an existing user to the LDAP user backend. Changes will have effect only on newly mapped (added) LDAP users. Leave it empty for default behavior.') }}
 			</p>
-			<NcCheckBoxRadioSwitch 
+			<NcCheckboxRadioSwitch 
 				aria-describedby="ldap_expert_username_force"
 				:label="t('user_ldap', 'Force Internal Username')"
 				v-model="ldapConfigProxy.ldapExpertUsernameForce"
+				/>
+		</div>
+
+		<div class="ldap-wizard__expert__line">
+			<strong>{{ t('user_ldap', 'Force Internal Groupname') }}</strong>
+			<p id="ldap_expert_groupname_force">
+				{{ t('user_ldap', 'Dangerous. Stick to the internal groupname even in case of conflicts. This will sort of transfer an existing user to the LDAP group backend. Changes will have effect only on newly mapped (added) LDAP users. Leave it empty for default behavior.') }}
+			</p>
+			<NcCheckboxRadioSwitch 
+				aria-describedby="ldap_expert_groupname_force"
+				:label="t('user_ldap', 'Force Internal Groupname')"
+				v-model="ldapConfigProxy.ldapExpertGroupnameForce"
 				/>
 		</div>
 	</fieldset>
@@ -51,7 +63,7 @@
 
 <script lang="ts" setup>
 import { t } from '@nextcloud/l10n'
-import { NcTextField, NcCheckBoxRadioSwitch } from '@nextcloud/vue'
+import { NcTextField, NcCheckboxRadioSwitch } from '@nextcloud/vue'
 import { computed } from 'vue'
 import { useLDAPConfigsStore } from '../../store/configs.ts'
 
