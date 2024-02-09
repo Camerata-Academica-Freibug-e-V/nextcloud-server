@@ -322,6 +322,7 @@ class JobList implements IJobList {
 				/** @var IJob $job */
 				$job = Server::get($row['class']);
 			} catch (ContainerExceptionInterface $e) {
+				$this->logger->info('ERROR', [ 'exception' => $e ]);
 				if (class_exists($row['class'])) {
 					$class = $row['class'];
 					$job = new $class();
