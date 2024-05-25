@@ -205,6 +205,11 @@ $CONFIG = [
 		'FOOBAR' => -100,
 	],
 
+        /**
+         * Allow different owners for app-dirs. Maybe handy during development.
+         */
+        'check_app_dirs_with_different_owner' => true,
+
 	/**
 	 * User Experience
 	 *
