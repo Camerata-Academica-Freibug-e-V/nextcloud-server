@@ -181,6 +181,7 @@ class Hooks implements IEventListener {
 			$template->addBodyText($text . ' ' . $l->t('If you did not request this, please contact an administrator.'));
 			if ($user->getEMailAddress()) {
 				$template->addBodyText($l->t('The new email address is %s', [$user->getEMailAddress()]));
+				$template->addBodyText($l->t('The old email address was %s', [$oldMailAddress]));
 			}
 			$template->addFooter();
 
