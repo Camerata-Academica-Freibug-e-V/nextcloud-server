@@ -33,6 +33,8 @@ class Message implements IMessage {
 	public function __construct(
 		private Email $symfonyEmail,
 		private bool $plainTextOnly,
+		private string $allowedRecipientsRegexp,
+		private string $disallowedRecipientsReceiver,
 	) {
 	}
 
@@ -71,19 +73,29 @@ class Message implements IMessage {
 	 * @return Address[]
 	 * @throws RfcComplianceException|InvalidArgumentException
 	 */
-	protected function convertAddresses(array $addresses): array {
+	protected function convertAddresses(array $addresses, bool $filter = false): array {
 		$convertedAddresses = [];
 
 		if (empty($addresses)) {
 			return [];
 		}
 
-		array_walk($addresses, function ($readableName, $email) use (&$convertedAddresses): void {
+		array_walk($addresses, function ($readableName, $email) use (&$convertedAddresses, $filter): void {
 			if (is_numeric($email)) {
-				$convertedAddresses[] = new Address($readableName);
-			} else {
-				$convertedAddresses[] = new Address($email, $readableName);
+				$email = $readableName;
+				$readableName = '';
+
 			}
+			if ($this->allowedRecipientsRegexp && $filter && !preg_match($this->allowedRecipientsRegexp, $email)) {
+				trigger_error('NOT ALLOWED ' . $email . ' <-> ' . $this->allowedRecipientsRegexp);
+				if (!$this->disallowedRecipientsReceiver) {
+					return;
+				}
+				$readableName .= ($readableName ? ' ' : '') . '[NC Disallowed Recipient: ' . str_replace('@', '_AT_', $email) . ']';
+				$this->symfonyEmail->getHeaders()->addTextHeader('X-nextcloud-disallowed-recipient', $email);
+				$email = $this->disallowedRecipientsReceiver;
+			}
+			$convertedAddresses[] = new Address($email, $readableName);
 		});
 
 		return $convertedAddresses;
@@ -276,11 +288,11 @@ class Message implements IMessage {
 	 * @throws InvalidArgumentException|RfcComplianceException
 	 */
 	public function setRecipients(): void {
-		$this->symfonyEmail->to(...$this->convertAddresses($this->getTo()));
+		$this->symfonyEmail->to(...$this->convertAddresses($this->getTo(), true));
 		$this->symfonyEmail->from(...$this->convertAddresses($this->getFrom()));
-		$this->symfonyEmail->replyTo(...$this->convertAddresses($this->getReplyTo()));
-		$this->symfonyEmail->cc(...$this->convertAddresses($this->getCc()));
-		$this->symfonyEmail->bcc(...$this->convertAddresses($this->getBcc()));
+		$this->symfonyEmail->replyTo(...$this->convertAddresses($this->getReplyTo(), true));
+		$this->symfonyEmail->cc(...$this->convertAddresses($this->getCc(), true));
+		$this->symfonyEmail->bcc(...$this->convertAddresses($this->getBcc(), true));
 	}
 
 	/**
