@@ -80,7 +80,9 @@ class Mailer implements IMailer {
 	#[\Override]
 	public function createMessage(): Message {
 		$plainTextOnly = $this->config->getSystemValueBool('mail_send_plaintext_only', false);
-		return new Message(new Email(), $plainTextOnly);
+		$allowedRecipientsRegexp = $this->config->getSystemValueString('mail_allowed_recipients_regexp', '');
+		$disallowedRecipientsReceiver = $this->config->getSystemValueString('mail_disallowed_recipients_receiver', '');
+		return new Message(new Email(), $plainTextOnly, $allowedRecipientsRegexp, $disallowedRecipientsReceiver);
 	}
 
 	/**
