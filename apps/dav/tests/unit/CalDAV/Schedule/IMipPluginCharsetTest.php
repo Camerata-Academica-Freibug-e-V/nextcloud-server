@@ -102,7 +102,7 @@ class IMipPluginCharsetTest extends TestCase {
 		);
 
 		// IMipPlugin
-		$message = new \OC\Mail\Message(new Email(), false);
+		$message = new \OC\Mail\Message(new Email(), false, '', '');
 		$this->mailer = $this->createMock(IMailer::class);
 		$this->mailer->method('createMessage')
 			->willReturn($message);
