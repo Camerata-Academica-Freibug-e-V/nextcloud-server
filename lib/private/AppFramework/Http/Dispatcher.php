@@ -105,7 +105,7 @@ class Dispatcher {
 				}
 
 				if ($numExecuted > 100) {
-					$this->logger->warning('Controller {class}::{method} executed {count} queries.', [
+					$this->logger->debug('Controller {class}::{method} executed {count} queries.', [
 						'class' => get_class($controller),
 						'method' => $methodName,
 						'count' => $numExecuted,
