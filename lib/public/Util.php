@@ -131,12 +131,6 @@ class Util {
 	 * @since 4.0.0
 	 */
 	public static function addScript(string $application, ?string $file = null, string $afterAppId = 'core', bool $prepend = false): void {
-		if (!empty($application)) {
-			$path = "$application/js/$file";
-		} else {
-			$path = "js/$file";
-		}
-
 		// Inject js translations if we load a script for
 		// a specific app that is not core, as those js files
 		// need separate handling
@@ -153,10 +147,18 @@ class Util {
 			self::$scriptDeps[$application]->addDep($afterAppId);
 		}
 
-		if ($prepend) {
-			array_unshift(self::$scripts[$application], $path);
-		} else {
-			self::$scripts[$application][] = $path;
+		if ($file !== null) {
+			if (!empty($application)) {
+				$path = "$application/js/$file";
+			} else {
+				$path = "js/$file";
+			}
+
+			if ($prepend) {
+				array_unshift(self::$scripts[$application], $path);
+			} else {
+				self::$scripts[$application][] = $path;
+			}
 		}
 	}
 
