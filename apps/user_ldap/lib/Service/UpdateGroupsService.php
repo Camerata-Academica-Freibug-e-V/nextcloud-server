@@ -157,9 +157,12 @@ class UpdateGroupsService {
 		$this->logger->debug('service "updateGroups" - dealing with created Groups.');
 
 		foreach ($createdGroups as $createdGroup) {
-			$this->logger->info('service "updateGroups" - new group "' . $createdGroup . '" found.');
-
 			$users = $this->groupBackend->usersInGroup($createdGroup);
+
+			if (count($users) > 0) {
+				$this->logger->info('service "updateGroups" - new group "' . $createdGroup . '" found.');
+			}
+
 			$groupObject = $this->groupManager->get($createdGroup);
 			foreach ($users as $user) {
 				try {
@@ -196,6 +199,9 @@ class UpdateGroupsService {
 	 */
 	public function handleRemovedGroups(array $removedGroups): void {
 		$this->logger->debug('service "updateGroups" - dealing with removed groups.');
+		if (empty($removedGroups)) {
+			return;
+		}
 
 		$this->groupMembershipMapper->deleteGroups($removedGroups);
 		foreach ($removedGroups as $group) {
