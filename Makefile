@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 all: clean dev-setup build-js-production
 
+dev: clean dev-setup build-js
+	npm run postbuild
+
 # Dev env management
 dev-setup: clean npm-init
 
