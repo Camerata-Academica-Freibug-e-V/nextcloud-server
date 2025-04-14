@@ -1,3 +1,5 @@
+SHELL = /bin/bash
+
 # SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 all: clean dev-setup build-js-production
@@ -61,3 +63,21 @@ occ-upgrade:
 	./occ maintenance:mimetype:update-js
 	./occ maintenance:mode --off
 	chmod g+w config/config.php
+
+VERSION = $(shell grep VersionString version.php|sed -E "s/^.*VersionString = '([0-9]+).*$$/\1/g")
+
+doc:
+	set -euo pipefail; \
+	mkdir -p tmp build/artifacts/doc; \
+	git clone --branch stable$(VERSION) https://github.com/nextcloud/documentation.git tmp/documentation; \
+	cd tmp/documentation; \
+	python -m venv venv; \
+	source venv/bin/activate; \
+	pip install -r requirements.txt; \
+	$(MAKE) admin-manual-html user-manual-html; \
+	mkdir -p archive/admin archive/user; \
+	rsync -a --exclude .buildinfo admin_manual/_build/html/com/ archive/admin/; \
+	rsync -a --exclude .buildinfo user_manual/_build/html/ archive/user/; \
+	find archive/user -name "*.html" -exec sed -i 's|href="/server/latest/user_manual|href="/core/doc/user|g' {} \; ; \
+	tar -czf ../../build/artifacts/doc/documentation-$(VERSION).tar.gz -C archive admin user
+	rm -rf tmp/documentation
