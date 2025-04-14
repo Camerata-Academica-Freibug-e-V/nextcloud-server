@@ -53,8 +53,12 @@ class HelpController extends Controller {
 			$mode = 'user';
 		}
 
+		if ($mode == 'user') {
+			$lang = '/' . $this->l10n->getLanguageCode();
+		}
+
 		$documentationUrl = $this->urlGenerator->getAbsoluteURL(
-			$this->urlGenerator->linkTo('', 'core/doc/' . $mode . '/index.html')
+			$this->urlGenerator->linkTo('', 'core/doc/' . $mode . $lang . '/index.html')
 		);
 
 		$urlUserDocs = $this->urlGenerator->linkToRoute('settings.Help.help', ['mode' => 'user']);
