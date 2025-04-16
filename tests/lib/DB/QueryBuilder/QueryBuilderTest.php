@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace Test\DB\QueryBuilder;
 
 use Doctrine\DBAL\Query\Expression\CompositeExpression;
-use Doctrine\DBAL\Query\QueryException;
 use OC\DB\ConnectionAdapter;
 use OC\DB\QueryBuilder\Literal;
 use OC\DB\QueryBuilder\Parameter;
@@ -1390,16 +1389,7 @@ class QueryBuilderTest extends \Test\TestCase {
 			->expects($this->any())
 			->method('getSQL')
 			->willReturn('SELECT * FROM FOO WHERE BAR IN (?)');
-		$this->logger
-			->expects($this->once())
-			->method('error')
-			->willReturnCallback(function ($message, $parameters): void {
-				$this->assertInstanceOf(QueryException::class, $parameters['exception']);
-				$this->assertSame(
-					'More than 1000 expressions in a list are not allowed on Oracle.',
-					$message
-				);
-			});
+		$this->logger->expects($this->never())->method('error');
 		$this->config
 			->expects($this->once())
 			->method('getValue')
@@ -1429,16 +1419,7 @@ class QueryBuilderTest extends \Test\TestCase {
 			->expects($this->any())
 			->method('getSQL')
 			->willReturn('SELECT * FROM FOO WHERE BAR IN (?) OR BAR IN (?)');
-		$this->logger
-			->expects($this->once())
-			->method('error')
-			->willReturnCallback(function ($message, $parameters): void {
-				$this->assertInstanceOf(QueryException::class, $parameters['exception']);
-				$this->assertSame(
-					'The number of parameters must not exceed 65535. Restriction by PostgreSQL.',
-					$message
-				);
-			});
+		$this->logger->expects($this->never())->method('error');
 		$this->config
 			->expects($this->once())
 			->method('getValue')
