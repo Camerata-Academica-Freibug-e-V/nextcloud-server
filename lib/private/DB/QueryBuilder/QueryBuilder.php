@@ -202,50 +202,50 @@ class QueryBuilder extends TypedQueryBuilder {
 		// }
 		// }
 
-		$tooLongOutputColumns = [];
-		foreach ($this->getOutputColumns() as $column) {
-			if (strlen($column) > 30) {
-				$tooLongOutputColumns[] = $column;
-			}
-		}
+		// $tooLongOutputColumns = [];
+		// foreach ($this->getOutputColumns() as $column) {
+		// 	if (strlen($column) > 30) {
+		// 		$tooLongOutputColumns[] = $column;
+		// 	}
+		// }
 
-		if (!empty($tooLongOutputColumns)) {
-			$exception = new QueryException('More than 30 characters for an output column name are not allowed on Oracle.');
-			$this->logger->error($exception->getMessage(), [
-				'query' => $this->getSQL(),
-				'columns' => $tooLongOutputColumns,
-				'app' => 'core',
-				'exception' => $exception,
-			]);
-		}
+		// if (!empty($tooLongOutputColumns)) {
+		// 	$exception = new QueryException('More than 30 characters for an output column name are not allowed on Oracle.');
+		// 	$this->logger->error($exception->getMessage(), [
+		// 		'query' => $this->getSQL(),
+		// 		'columns' => $tooLongOutputColumns,
+		// 		'app' => 'core',
+		// 		'exception' => $exception,
+		// 	]);
+		// }
 
-		$numberOfParameters = 0;
-		$hasTooLargeArrayParameter = false;
-		foreach ($this->getParameters() as $parameter) {
-			if (is_array($parameter)) {
-				$count = count($parameter);
-				$numberOfParameters += $count;
-				$hasTooLargeArrayParameter = $hasTooLargeArrayParameter || ($count > 1000);
-			}
-		}
+		// $numberOfParameters = 0;
+		// $hasTooLargeArrayParameter = false;
+		// foreach ($this->getParameters() as $parameter) {
+		// 	if (is_array($parameter)) {
+		// 		$count = count($parameter);
+		// 		$numberOfParameters += $count;
+		// 		$hasTooLargeArrayParameter = $hasTooLargeArrayParameter || ($count > 1000);
+		// 	}
+		// }
 
-		if ($hasTooLargeArrayParameter) {
-			$exception = new QueryException('More than 1000 expressions in a list are not allowed on Oracle.');
-			$this->logger->error($exception->getMessage(), [
-				'query' => $this->getSQL(),
-				'app' => 'core',
-				'exception' => $exception,
-			]);
-		}
+		// if ($hasTooLargeArrayParameter) {
+		// 	$exception = new QueryException('More than 1000 expressions in a list are not allowed on Oracle.');
+		// 	$this->logger->error($exception->getMessage(), [
+		// 		'query' => $this->getSQL(),
+		// 		'app' => 'core',
+		// 		'exception' => $exception,
+		// 	]);
+		// }
 
-		if ($numberOfParameters > 65535) {
-			$exception = new QueryException('The number of parameters must not exceed 65535. Restriction by PostgreSQL.');
-			$this->logger->error($exception->getMessage(), [
-				'query' => $this->getSQL(),
-				'app' => 'core',
-				'exception' => $exception,
-			]);
-		}
+		// if ($numberOfParameters > 65535) {
+		// 	$exception = new QueryException('The number of parameters must not exceed 65535. Restriction by PostgreSQL.');
+		// 	$this->logger->error($exception->getMessage(), [
+		// 		'query' => $this->getSQL(),
+		// 		'app' => 'core',
+		// 		'exception' => $exception,
+		// 	]);
+		// }
 	}
 
 	#[\Override]
