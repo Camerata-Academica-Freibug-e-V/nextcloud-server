@@ -32,6 +32,8 @@ class RequestTest extends \Test\TestCase {
 	#[\Override]
 	protected function setUp(): void {
 		parent::setUp();
+		$this->originalCli = \OC::$CLI;
+		\OC::$CLI = false;
 
 		if (in_array('fakeinput', stream_get_wrappers())) {
 			stream_wrapper_unregister('fakeinput');
@@ -47,8 +49,23 @@ class RequestTest extends \Test\TestCase {
 
 	#[\Override]
 	protected function tearDown(): void {
+		\OC::$CLI = $this->originalCli;
 		stream_wrapper_unregister('fakeinput');
 		parent::tearDown();
+	}
+
+	private bool $originalCli;
+
+	public function testRemoteAddressInCli(): void {
+		\OC::$CLI = true;
+		$request = new Request(
+			['server' => ['REMOTE_ADDR' => '10.0.0.2']],
+			$this->requestId,
+			$this->config,
+			$this->csrfTokenManager,
+			$this->stream,
+		);
+		$this->assertSame('127.0.0.1', $request->getRemoteAddress());
 	}
 
 	public function testRequestAccessors(): void {
