@@ -539,6 +539,9 @@ class Request implements \ArrayAccess, \Countable, IRequest {
 
 	#[\Override]
 	public function getRemoteAddress(): string {
+		if (\OC::$CLI) {
+			return '127.0.0.1';
+		}
 		$remoteAddress = isset($this->server['REMOTE_ADDR']) ? $this->server['REMOTE_ADDR'] : '';
 		$trustedProxies = $this->config->getSystemValue('trusted_proxies', []);
 
