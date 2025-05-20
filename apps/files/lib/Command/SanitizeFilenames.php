@@ -127,7 +127,7 @@ class SanitizeFilenames {
 						// simulate error for dry run
 						throw new NotPermittedException();
 					}
-					$this->output->writeln('renamed: "' . $oldName . '" to "' . $newName . '"');
+					$this->output->writeln('renamed: "' . $path . '/' . $oldName . '" to "' . $newName . '"');
 				}
 			} catch (LockedException) {
 				$this->output->writeln('<comment>skipping: ' . $node->getPath() . ' (file is locked)</>');
