@@ -147,6 +147,10 @@ class AddressBookImpl implements ICreateContactFromString, IAddressBookEnabled, 
 					}
 					$vCard->add($property);
 				}
+			} elseif ($key === 'N' && is_string($value)) {
+				$value = stripslashes($value);
+				$value = explode(';', $value);
+				$vCard->$key = $vCard->createProperty($key, $value);
 			} elseif ($key === 'CATEGORIES') {
 				$property = $vCard->createProperty($key);
 				$property->setParts(explode(',', $value));
