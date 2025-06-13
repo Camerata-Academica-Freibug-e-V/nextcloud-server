@@ -1563,8 +1563,13 @@ class UsersControllerTest extends TestCase {
 			->willReturn(true);
 		$this->groupManager
 			->expects($this->any())
-			->method('getUserGroupIds')
-			->willReturn(['group0', 'group1', 'group2']);
+			->method('getUserGroups')
+			->willReturn(array_map(function (string $gid): IGroup {
+				$group = $this->createMock(IGroup::class);
+				$group->method('getGID')->willReturn($gid);
+				$group->method('getDisplayName')->willReturn($gid . '-name');
+				return $group;
+			}, ['group0', 'group1', 'group2']));
 		$this->groupManager
 			->expects($this->once())
 			->method('getSubAdmin')
@@ -1666,6 +1671,7 @@ class UsersControllerTest extends TestCase {
 			'bluesky' => 'bluesky',
 			'fediverse' => 'fediverse',
 			'groups' => ['group0', 'group1', 'group2'],
+			'namedGroups' => ['group0' => 'group0-name', 'group1' => 'group1-name', 'group2' => 'group2-name'],
 			'language' => 'de',
 			'locale' => null,
 			'timezone' => null,
@@ -1814,6 +1820,7 @@ class UsersControllerTest extends TestCase {
 			'bluesky' => 'bluesky',
 			'fediverse' => 'fediverse',
 			'groups' => [],
+			'namedGroups' => [],
 			'language' => 'da',
 			'locale' => null,
 			'timezone' => null,
@@ -1999,6 +2006,7 @@ class UsersControllerTest extends TestCase {
 			'fediverse' => 'fediverse',
 			'groups' => [],
 			'language' => 'ru',
+			'namedGroups' => [],
 			'locale' => null,
 			'timezone' => null,
 			'backendCapabilities' => [
