@@ -489,8 +489,8 @@ class GroupsControllerTest extends \Test\TestCase {
 			->with($gid)
 			->willReturn($group);
 		$this->groupManager->expects($this->any())
-			->method('getUserGroupIds')
-			->willReturn(['ncg1']);
+			->method('getUserGroups')
+			->willReturn([$group]);
 
 		/** @var MockObject */
 		$this->subAdminManager->expects($this->any())
@@ -626,8 +626,8 @@ class GroupsControllerTest extends \Test\TestCase {
 			->with($gid)
 			->willReturn($group);
 		$this->groupManager->expects($this->any())
-			->method('getUserGroupIds')
-			->willReturn(['Department A/B C/D']);
+			->method('getUserGroups')
+			->willReturn([$group]);
 
 		/** @var MockObject */
 		$this->subAdminManager->expects($this->any())
