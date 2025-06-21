@@ -80,6 +80,15 @@ class Validator implements IValidator {
 		}
 
 		foreach ($parameter as $key => $value) {
+			if (is_numeric($key)) {
+				continue;
+			}
+			if (is_numeric($value)) {
+				continue;
+			}
+			if (is_array($value)) {
+				continue;
+			}
 			if (!is_string($key)) {
 				throw new InvalidObjectExeption('Object for placeholder ' . $placeholder . ' is invalid, key ' . $key . ' is not a string');
 			}
