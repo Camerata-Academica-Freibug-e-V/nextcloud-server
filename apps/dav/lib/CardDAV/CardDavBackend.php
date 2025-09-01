@@ -1,7 +1,7 @@
 <?php
 
 /**
- * SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-FileCopyrightText: 2016-2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-FileCopyrightText: 2016 ownCloud, Inc.
  * SPDX-License-Identifier: AGPL-3.0-only
  */
@@ -648,7 +648,7 @@ class CardDavBackend implements BackendInterface, SyncSupport {
 	 * @param string $cardUri
 	 * @param string $cardData
 	 * @param bool $checkUidConflict
-	 * @return string
+	 * @return null|string
 	 */
 	#[\Override]
 	public function createCard($addressBookId, $cardUri, $cardData, bool $checkUidConflict = true) {
@@ -686,9 +686,10 @@ class CardDavBackend implements BackendInterface, SyncSupport {
 			$addressBookData = $this->getAddressBookById($addressBookId);
 			$shares = $this->getShares($addressBookId);
 			$objectRow = $this->getCard($addressBookId, $cardUri);
-			$this->dispatcher->dispatchTyped(new CardCreatedEvent($addressBookId, $addressBookData, $shares, $objectRow));
+			$event = new CardCreatedEvent($addressBookId, $addressBookData, $shares, $objectRow, $etag);
+			$this->dispatcher->dispatchTyped($event);
 
-			return '"' . $etag . '"';
+			return $event->getEtag() === null ? null : '"' . $etag . '"';
 		}, $this->db);
 	}
 
@@ -715,7 +716,7 @@ class CardDavBackend implements BackendInterface, SyncSupport {
 	 * @param mixed $addressBookId
 	 * @param string $cardUri
 	 * @param string $cardData
-	 * @return string
+	 * @return null|string
 	 */
 	#[\Override]
 	public function updateCard($addressBookId, $cardUri, $cardData) {
@@ -756,8 +757,16 @@ class CardDavBackend implements BackendInterface, SyncSupport {
 			$addressBookData = $this->getAddressBookById($addressBookId);
 			$shares = $this->getShares($addressBookId);
 			$objectRow = $this->getCard($addressBookId, $cardUri);
-			$this->dispatcher->dispatchTyped(new CardUpdatedEvent($addressBookId, $addressBookData, $shares, $objectRow));
-			return '"' . $etag . '"';
+			$event = new CardUpdatedEvent($addressBookId, $addressBookData, $shares, $objectRow, $etag);
+			$this->dispatcher->dispatchTyped($event);
+			$etag = $event->getEtag();
+			if ($etag === null) {
+				unset($this->etagCache[$etagCacheKey]);
+				return null;
+			} else {
+				$this->etagCache[$etagCacheKey] = $etag;
+				return '"' . $etag . '"';
+			}
 		}, $this->db);
 	}
 
