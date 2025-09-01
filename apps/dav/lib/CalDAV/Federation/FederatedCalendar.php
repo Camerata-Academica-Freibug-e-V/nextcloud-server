@@ -268,7 +268,7 @@ class FederatedCalendar implements ICalendar, IProperties, IMultiGet {
 	 * @param resource|string $data Initial payload
 	 */
 	#[\Override]
-	public function createFile($name, $data = null): string {
+	public function createFile($name, $data = null): ?string {
 		if (is_resource($data)) {
 			$data = stream_get_contents($data);
 		}
@@ -288,7 +288,7 @@ class FederatedCalendar implements ICalendar, IProperties, IMultiGet {
 	 * @param string $name Name of the file
 	 * @param resource|string $data Initial payload
 	 */
-	public function updateFile($name, $data): string {
+	public function updateFile($name, $data): ?string {
 		if (is_resource($data)) {
 			$data = stream_get_contents($data);
 		}

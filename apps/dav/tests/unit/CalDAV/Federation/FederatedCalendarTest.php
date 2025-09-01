@@ -16,6 +16,7 @@ use OCA\DAV\CalDAV\Federation\FederatedCalendarMapper;
 use OCA\DAV\CalDAV\Federation\FederatedCalendarObject;
 use OCA\DAV\CalDAV\Federation\FederatedCalendarSyncService;
 use OCP\Constants;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use Sabre\DAV\Exception\MethodNotAllowed;
 use Sabre\DAV\Exception\NotFound;
@@ -352,10 +353,27 @@ class FederatedCalendarTest extends TestCase {
 		$this->assertFalse($result);
 	}
 
-	public function testCreateFile(): void {
+	public static function localEtags(): array {
+		return [['"local-etag"'], [null]];
+	}
+
+	#[DataProvider('localEtags')]
+	public function testPutReturnsLocalEtag(?string $localEtag): void {
+		$calendar = $this->createMock(FederatedCalendar::class);
+		$calendar->expects($this->once())
+			->method('updateFile')
+			->with('event1.ics', 'updated calendar data')
+			->willReturn($localEtag);
+		$object = new FederatedCalendarObject($calendar, ['uri' => 'event1.ics']);
+
+		$this->assertSame($localEtag, $object->put('updated calendar data'));
+		$this->assertSame('updated calendar data', $object->get());
+	}
+
+	#[DataProvider('localEtags')]
+	public function testCreateFile(?string $localEtag): void {
 		$calendarData = 'BEGIN:VCALENDAR...END:VCALENDAR';
 		$remoteEtag = '"remote-etag-123"';
-		$localEtag = '"local-etag-456"';
 
 		$this->federatedCalendarService->expects(self::once())
 			->method('createCalendarObject')
@@ -371,10 +389,10 @@ class FederatedCalendarTest extends TestCase {
 		$this->assertEquals($localEtag, $result);
 	}
 
-	public function testUpdateFile(): void {
+	#[DataProvider('localEtags')]
+	public function testUpdateFile(?string $localEtag): void {
 		$calendarData = 'BEGIN:VCALENDAR...UPDATED...END:VCALENDAR';
 		$remoteEtag = '"remote-etag-updated"';
-		$localEtag = '"local-etag-updated"';
 
 		$this->federatedCalendarService->expects(self::once())
 			->method('updateCalendarObject')

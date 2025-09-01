@@ -43,7 +43,7 @@ class FederatedCalendarObject implements ICalendarObject, IACL {
 	 * @param resource|string $data contents of the file
 	 */
 	#[\Override]
-	public function put($data): string {
+	public function put($data): ?string {
 
 		$etag = $this->calendarObject->updateFile($this->objectData['uri'], $data);
 		$this->objectData['calendardata'] = $data;
