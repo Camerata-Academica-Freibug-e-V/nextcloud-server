@@ -29,8 +29,9 @@ class CalendarObjectUpdatedEvent extends AbstractCalendarObjectEvent {
 		array $shares,
 		array $objectData,
 		private array $oldObjectData = [],
+		?string $etag = null,
 	) {
-		parent::__construct($calendarId, $calendarData, $shares, $objectData);
+		parent::__construct($calendarId, $calendarData, $shares, $objectData, $etag);
 	}
 
 	/**
