@@ -19,6 +19,8 @@ use OCA\DAV\CalDAV\Federation\FederatedCalendarEntity;
 use OCA\DAV\DAV\Sharing\Plugin as SharingPlugin;
 use OCA\DAV\Events\CalendarDeletedEvent;
 use OCA\DAV\Exception\UidConflict;
+use OCP\Calendar\Events\CalendarObjectCreatedEvent;
+use OCP\Calendar\Events\CalendarObjectUpdatedEvent;
 use OCP\IConfig;
 use OCP\IL10N;
 use Psr\Log\NullLogger;
@@ -216,7 +218,7 @@ EOD;
 
 		$this->dispatcher->expects(self::atLeastOnce())
 			->method('dispatchTyped');
-		$this->backend->createCalendarObject($calendarId, $uri, $calData);
+		$createdEtag = $this->backend->createCalendarObject($calendarId, $uri, $calData);
 
 		// get all the calendar objects
 		$calendarObjects = $this->backend->getCalendarObjects($calendarId);
@@ -235,6 +237,7 @@ EOD;
 		$this->assertArrayHasKey('classification', $calendarObject);
 		$this->assertArrayHasKey('{' . SharingPlugin::NS_NEXTCLOUD . '}deleted-at', $calendarObject);
 		$this->assertEquals($calData, $calendarObject['calendardata']);
+		$this->assertSame($createdEtag, $calendarObject['etag']);
 
 		// update the card
 		$calData = <<<'EOD'
@@ -254,9 +257,10 @@ END:VCALENDAR
 EOD;
 		$this->dispatcher->expects(self::atLeastOnce())
 			->method('dispatchTyped');
-		$this->backend->updateCalendarObject($calendarId, $uri, $calData);
+		$updatedEtag = $this->backend->updateCalendarObject($calendarId, $uri, $calData);
 		$calendarObject = $this->backend->getCalendarObject($calendarId, $uri);
 		$this->assertEquals($calData, $calendarObject['calendardata']);
+		$this->assertSame($updatedEtag, $calendarObject['etag']);
 
 		// delete the card
 		$this->dispatcher->expects(self::atLeastOnce())
@@ -264,6 +268,55 @@ EOD;
 		$this->backend->deleteCalendarObject($calendarId, $uri);
 		$calendarObjects = $this->backend->getCalendarObjects($calendarId);
 		$this->assertCount(0, $calendarObjects);
+	}
+
+	#[\PHPUnit\Framework\Attributes\TestWith([CalDavBackend::CALENDAR_TYPE_FEDERATED, false])]
+	#[\PHPUnit\Framework\Attributes\TestWith([CalDavBackend::CALENDAR_TYPE_CALENDAR, false])]
+	#[\PHPUnit\Framework\Attributes\TestWith([CalDavBackend::CALENDAR_TYPE_CALENDAR, true])]
+	public function testCalendarObjectEtag(int $calendarType, bool $clearEtag): void {
+		$calendarId = $this->createTestCalendar();
+		$this->dispatcher->expects(self::exactly($calendarType === CalDavBackend::CALENDAR_TYPE_FEDERATED ? 0 : 2))
+			->method('dispatchTyped')
+			->willReturnCallback(function ($event) use ($clearEtag): void {
+				self::assertTrue($event instanceof CalendarObjectCreatedEvent || $event instanceof CalendarObjectUpdatedEvent);
+				self::assertNotNull($event->getEtag());
+				if ($clearEtag) {
+					$event->clearEtag();
+				}
+			});
+		$uri = static::getUniqueID('federated-calobj');
+		$calData = <<<'EOD'
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:Nextcloud
+BEGIN:VEVENT
+UID:federated-etag-test
+DTSTAMP:20240101T000000Z
+DTSTART:20240101T100000Z
+DTEND:20240101T110000Z
+END:VEVENT
+END:VCALENDAR
+EOD;
+
+		$etag = $this->backend->createCalendarObject(
+			$calendarId,
+			$uri,
+			$calData,
+			$calendarType,
+		);
+		if ($clearEtag) {
+			$this->assertNull($etag);
+		} else {
+			$this->assertSame('"' . md5($calData) . '"', $etag);
+		}
+
+		$updatedEtag = $this->backend->updateCalendarObject(
+			$calendarId,
+			$uri,
+			$calData,
+			$calendarType,
+		);
+		$this->assertSame($etag, $updatedEtag);
 	}
 
 	public function testUpdatePropertiesHandlesFourByteIndexedParameters(): void {
