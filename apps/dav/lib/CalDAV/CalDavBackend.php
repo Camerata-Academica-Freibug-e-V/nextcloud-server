@@ -1543,7 +1543,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 	 * @param string $objectUri
 	 * @param string $calendarData
 	 * @param int $calendarType
-	 * @return string
+	 * @return null|string
 	 */
 	#[\Override]
 	public function createCalendarObject($calendarId, $objectUri, $calendarData, $calendarType = self::CALENDAR_TYPE_CALENDAR) {
@@ -1587,20 +1587,24 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 			$objectRow = $this->getCalendarObject($calendarId, $objectUri, $calendarType);
 			assert($objectRow !== null);
 
+			$etag = $extraData['etag'];
 			if ($calendarType === self::CALENDAR_TYPE_CALENDAR) {
 				$calendarRow = $this->getCalendarById($calendarId);
 				$shares = $this->getShares($calendarId);
 
-				$this->dispatcher->dispatchTyped(new CalendarObjectCreatedEvent($calendarId, $calendarRow, $shares, $objectRow));
+				$event = new CalendarObjectCreatedEvent($calendarId, $calendarRow, $shares, $objectRow, $etag);
+				$this->dispatcher->dispatchTyped($event);
 			} elseif ($calendarType === self::CALENDAR_TYPE_SUBSCRIPTION) {
 				$subscriptionRow = $this->getSubscriptionById($calendarId);
 
-				$this->dispatcher->dispatchTyped(new CachedCalendarObjectCreatedEvent($calendarId, $subscriptionRow, [], $objectRow));
+				$event = new CachedCalendarObjectCreatedEvent($calendarId, $subscriptionRow, [], $objectRow, $etag);
+				$this->dispatcher->dispatchTyped($event);
 			} elseif ($calendarType === self::CALENDAR_TYPE_FEDERATED) {
 				// TODO: implement custom event for federated calendars
 			}
+			$etag = $event->getEtag();
 
-			return '"' . $extraData['etag'] . '"';
+			return $etag === null ? null : '"' . $etag . '"';
 		}, $this->db);
 	}
 
@@ -1621,7 +1625,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 	 * @param string $objectUri
 	 * @param string $calendarData
 	 * @param int $calendarType
-	 * @return string
+	 * @return null|string
 	 */
 	#[\Override]
 	public function updateCalendarObject($calendarId, $objectUri, $calendarData, $calendarType = self::CALENDAR_TYPE_CALENDAR) {
@@ -1653,6 +1657,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 			$this->updateProperties($calendarId, $objectUri, $calendarData, $calendarType);
 			$this->addChanges($calendarId, [$objectUri], 2, $calendarType);
 
+			$etag = $extraData['etag'];
 			if (is_array($oldObjectRow)) {
 				// Derive the new object row from the previous one and the freshly
 				// denormalized data instead of querying again, mirroring the columns
@@ -1669,7 +1674,6 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 				// Refresh the cache populated by the read above so later lookups in
 				// this request see the new version instead of the stale one.
 				$this->cachedObjects[$calendarId . '::' . $objectUri . '::' . $calendarType] = $objectRow;
-
 				if ($calendarType === self::CALENDAR_TYPE_CALENDAR) {
 					$calendarRow = $this->getCalendarById($calendarId);
 					$shares = $this->getShares($calendarId);
@@ -1678,13 +1682,15 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 				} elseif ($calendarType === self::CALENDAR_TYPE_SUBSCRIPTION) {
 					$subscriptionRow = $this->getSubscriptionById($calendarId);
 
-					$this->dispatcher->dispatchTyped(new CachedCalendarObjectUpdatedEvent($calendarId, $subscriptionRow, [], $objectRow));
+					$event = new CachedCalendarObjectUpdatedEvent($calendarId, $subscriptionRow, [], $objectRow, $etag);
+					$this->dispatcher->dispatchTyped($event);
 				} elseif ($calendarType === self::CALENDAR_TYPE_FEDERATED) {
 					// TODO: implement custom event for federated calendars
 				}
+				$etag = $event->getEtag();
 			}
 
-			return '"' . $extraData['etag'] . '"';
+			return $etag === null ? null : '"' . $etag . '"';
 		}, $this->db);
 	}
 
