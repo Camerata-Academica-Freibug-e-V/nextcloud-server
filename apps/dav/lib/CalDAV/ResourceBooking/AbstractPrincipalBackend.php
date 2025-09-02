@@ -483,7 +483,7 @@ abstract class AbstractPrincipalBackend implements BackendInterface {
 		}
 
 		// group restrictions contains something, but not parsable, deny access and log warning
-		$json = json_decode($row['group_restrictions'], null, 512, JSON_THROW_ON_ERROR);
+		$json = json_decode($row['group_restrictions'], true, 512, JSON_THROW_ON_ERROR);
 		if (!\is_array($json)) {
 			$this->logger->info('group_restrictions field could not be parsed for ' . $this->dbTableName . '::' . $row['id'] . ', denying access to resource');
 			return false;
@@ -494,6 +494,13 @@ abstract class AbstractPrincipalBackend implements BackendInterface {
 			return true;
 		}
 
-		return !empty(array_intersect($json, $userGroups));
+		$query = $this->db->getQueryBuilder();
+		$query->select('group_id')
+			->from('calresources_restricts')
+			->where($query->expr()->in('id', $query->createNamedParameter($json, IQueryBuilder::PARAM_INT_ARRAY)));
+		$stmt = $query->execute();
+		$allowedGroups = $stmt->fetchAll(\PDO::FETCH_COLUMN, 0);
+
+		return !empty(array_intersect($allowedGroups, $userGroups));
 	}
 }
