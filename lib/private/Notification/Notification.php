@@ -15,6 +15,7 @@ use OCP\Notification\InvalidValueException;
 use OCP\RichObjectStrings\InvalidObjectExeption;
 use OCP\RichObjectStrings\IRichTextFormatter;
 use OCP\RichObjectStrings\IValidator;
+use OCP\Server;
 
 class Notification implements INotification {
 	/**
@@ -492,6 +493,7 @@ class Notification implements INotification {
 			try {
 				$this->richValidator->validate($this->getRichSubject(), $this->getRichSubjectParameters());
 			} catch (InvalidObjectExeption $e) {
+				Server::get(\Psr\Log\LoggerInterface::class)->error('IS VALID PARSED BAIL OUT 1', [ 'exception' => $e ]);
 				return false;
 			}
 		}
@@ -500,6 +502,7 @@ class Notification implements INotification {
 			try {
 				$this->richValidator->validate($this->getRichMessage(), $this->getRichMessageParameters());
 			} catch (InvalidObjectExeption $e) {
+				Server::get(\Psr\Log\LoggerInterface::class)->error('IS VALID PARSED BAIL OUT 2', [ 'exception' => $e ]);
 				return false;
 			}
 		}
