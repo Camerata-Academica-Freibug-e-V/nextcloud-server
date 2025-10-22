@@ -50,8 +50,12 @@ try {
 	}
 
 	$user = posix_getuid();
-	$configUser = fileowner(OC::$configDir . 'config.php');
-	if ($user !== $configUser) {
+	$group = posix_getgid();
+	$configFile = OC::$configDir . 'config.php';
+	$configPerms = fileperms($configFile);
+	$configUser = fileowner($configFile);
+	$configGroup = filegroup($configFile);
+	if ($user !== $configUser && $group !== $configGroup && !($configPerms & 0x0020)) {
 		echo 'Console has to be executed with the user that owns the file config/config.php' . PHP_EOL;
 		echo 'Current user id: ' . $user . PHP_EOL;
 		echo 'Owner id of config.php: ' . $configUser . PHP_EOL;
