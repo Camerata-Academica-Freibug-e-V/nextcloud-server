@@ -209,7 +209,7 @@ class JobList implements IJobList {
 					$this->logger->info('Skipped through all jobs and revisited a IParallelAwareJob blocked job again, giving up.', ['app' => 'cron']);
 					return null;
 				}
-				$this->logger->info('Skipping ' . get_class($job) . ' job with ID ' . $job->getId() . ' because another job with the same class is already running', ['app' => 'cron']);
+				$this->logger->debug('Skipping ' . get_class($job) . ' job with ID ' . $job->getId() . ' because another job with the same class is already running', ['app' => 'cron']);
 
 				$update = $this->connection->getQueryBuilder();
 				$update->update('jobs')
