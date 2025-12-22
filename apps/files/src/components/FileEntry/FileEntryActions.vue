@@ -410,5 +410,11 @@ main.app-content[style*="mouse-pos-x"] .v-popper__popper {
 		}
 	}
 }
-
+</style>
+<style lang="scss">
+.files-list__row-action {
+	&.files-list__row-action--inline {
+		padding-inline: 0 !important;
+	}
+}
 </style>
