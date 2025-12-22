@@ -492,7 +492,11 @@ class Router implements IRouter {
 
 		$dir = new DirectoryIterator($appControllerPath);
 		foreach ($dir as $file) {
-			if (!str_ends_with($file->getPathname(), 'Controller.php')) {
+			$pathname = $file->getPathname();
+			if (!str_ends_with($pathname, 'Controller.php')
+				|| str_starts_with($pathname, '.')
+				|| str_contains($pathname, '#')
+			) {
 				continue;
 			}
 
