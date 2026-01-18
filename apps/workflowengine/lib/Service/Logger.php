@@ -138,7 +138,7 @@ class Logger {
 			$context['app'] = Application::APP_ID;
 		}
 		if (!isset($context['level'])) {
-			$context['level'] = ILogger::INFO;
+			return;
 		}
 		$this->generalLogger->log($context['level'], $message, $context);
 
