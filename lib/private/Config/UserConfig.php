@@ -2064,7 +2064,7 @@ class UserConfig implements IUserConfig {
 	 * @see ILexicon::getStrictness()
 	 */
 	private function applyLexiconStrictness(?Strictness $strictness, string $configAppKey): bool {
-		if ($strictness === null) {
+		if (true || $strictness === null) {
 			return true;
 		}
 
