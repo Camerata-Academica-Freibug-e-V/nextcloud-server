@@ -23,7 +23,8 @@ export function useRouteParameters() {
 	 * Get the current fileId used on the route
 	 */
 	const fileId = computed<number | null>(() => {
-		const fileId = Number.parseInt(route.params.fileid ?? '0') || null
+		const fileIdSource = route.params.fileid ?? route.query.fileid
+		const fileId = Number.parseInt(fileIdSource ?? '0') || null
 		return Number.isNaN(fileId) ? null : fileId
 	})
 
