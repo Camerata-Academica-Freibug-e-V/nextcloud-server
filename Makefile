@@ -11,9 +11,9 @@ dev: clean dev-setup build-js
 dev-setup: clean npm-init
 
 npm-init:
-	npm install
-	npm audit fix || true
-	npm update browserslist
+#	npm install
+#	npm audit fix || true
+#	npm update browserslist
 	npm ci
 
 npm-update:
