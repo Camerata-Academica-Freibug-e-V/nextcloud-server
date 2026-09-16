@@ -1,126 +1,147 @@
 commit 6a5293ca2f87382b488bf8da9d87aa25c3ad2550
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Sep 16 14:56:18 2026 +0200
+Status: CP
 
     fix(Makefile): use matching doc version
 
 commit 12e3167bfeb4d1642b0f4536ee40c2a0896a70ae
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Sep 16 14:28:05 2026 +0200
+Status: skipped
 
     update-apps.sh: switch twofactor_gateway to main branch.
 
 commit 46686a0bf155e4bede94a1e6963acb68fb3558bf
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Sep 16 12:52:36 2026 +0200
+Status: skipped
 
     update-apps.h, bump app versions
 
 commit e88b2cb5674c54718117a92e4f678e3ff99b058f
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Sep 16 12:39:02 2026 +0200
+Status: skipped
 
     update-apps.sh, bump terms_of_service version
 
 commit cf4a317519ac17637207ddcd1a7c49c2ef74119e
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Sep 16 12:27:07 2026 +0200
+Status: skipped
 
     update-apps.sh: bump versions.
 
 commit 43f8b013ea866d81f8af790a669823ba6a10bbfb
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sun Aug 30 20:54:23 2026 +0200
+Status: skipped
 
     Add patches to 3rdparty/
 
 commit bf8fc44f465c2c5030b2bdad4a368ee0531c2ac3
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Aug 4 16:11:34 2026 +0200
+Status: skipped
 
     update-apps.sh, bump core version to 34
 
 commit 9fd64866712418b7a8263c3d2475f06571f5b131
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Jul 14 14:52:06 2026 +0200
+Status: skipped
 
     Record cherry-picking.
 
 commit eae24d88fe30869dde925475359a30b6d32d2e35
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Aug 28 13:15:27 2024 +0200
+Status: skipped
 
     update-apps.sh -- update all git apps
 
 commit d5a30118fa76d222abc5a8f55f0446ef892b34ea
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Feb 19 02:16:05 2026 +0100
+Status: CP
 
     Makefile: do not run "npm audit fix", seemingly the build system is quite fragile.
 
 commit 2eeeda565925f15b2b84960f21a467d4e1d08efb
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Jan 27 12:03:27 2026 +0100
+Status: CP, @TODO: check if this could be achieved by other means.
 
     apps/files, useRouteParameters: honour fileid set from query string.
 
 commit dacd4403f187c2d7f00072c70b0851e9606b2769
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sun Jan 18 01:58:44 2026 +0100
+Status: CP
 
     Silence annoying workflow engine log messages at too high a level
 
 commit 1f0e60085e14a9ff545a123113c5e0123841947d
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Jan 21 20:09:49 2026 +0100
+Status: CP
 
     L10NString, convert backed enum parameters to their values.
 
 commit f50e507c22cb3cf49012508025c2eb7421c6660e
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sun Jan 18 01:54:14 2026 +0100
+Status: CP
 
     Silence annoying config lexicon warnings.
 
 commit 6e2701658cc71507a4db357b7f5dc359abf32c9a
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Dec 23 00:00:34 2025 +0100
+Status: CP
 
     Route\Router: ignore lock and backup files.
 
 commit 4aeb5bf6c3a117ef1ef57894f41ff9aa7b57d302
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon Dec 22 23:32:10 2025 +0100
+Status: CP, @TODO: check if still needed.
 
     apps/files: fix truncated svg icons for inline file actions.
 
 commit 4106e855286c5898dd9a31dab0e81197a77e2c5a
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sun Nov 2 15:00:03 2025 +0100
+Status: CP
 
     Denoise lib/private/BackgroundJob/JobList.php.
 
 commit 0f6135c5549e7854cc5d3be06d74e9afc5bdc8ef
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Oct 22 12:38:15 2025 +0200
+Status: CP
 
     console.php, allow group  readable config file.
 
 commit b8ded02dfb5d62981ecc5071ceb95ae5bb47b3b2
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Oct 9 16:50:27 2025 +0200
+Status: CP
 
     fix(asset loading) Avoid duplicate loading of core translations.
 
 commit 3911b90852b336928a085e063629e42111b18a20
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Oct 9 16:48:49 2025 +0200
+Status: CP
 
     fix(l10n) load core translations in public template response.
 
 commit b58210a0097ecfa7958ce6926f14ee9d17c9b227
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Sep 3 00:13:16 2025 +0200
+Status: CP
 
     NC-PR: apps/dav fix json_decode to StdObject and fix resource access restrictions.
     
@@ -137,6 +158,7 @@ Date:   Wed Sep 3 00:13:16 2025 +0200
 commit b2358ae42d3d75d4eba1263e116162ee1d2fe2fc
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon Jun 30 14:50:31 2025 +0200
+Status: CP, @TODO: check if still needed.
 
     fix: permissions when copying from readonly storage
     
@@ -145,30 +167,35 @@ Date:   Mon Jun 30 14:50:31 2025 +0200
 commit 28f6c300c90f8e40d0357ef989c637ed667c67a6
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sat Jun 21 23:37:42 2025 +0200
+Status: CP
 
     Be not picky about keys and values of notifications.
 
 commit 68ff430a11f93ca747f3a873660c9eab8d0f2a52
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Sep 5 19:55:40 2025 +0200
+Status: CP
 
     Notification, log errors when isValidParsed() fails
 
 commit 08cbec1847cf2768023373d5dfc0da3a2d549cb1
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Jun 13 16:17:16 2025 +0200
+Status: CP
 
     User accounts / app_provisioning: export also the display names of groups
 
 commit 1ce4019f89b095c283e3ec0d18939e06dad24dab
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon Sep 1 11:15:32 2025 +0200
+Status: CP
 
     NC-PR: DAV: support voiding the etag in the event handlers.
 
 commit 2cc53ce60a981108849dc743a7c32380e5436d57
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Jun 10 00:20:15 2025 +0200
+Status: CP
 
     NC-PR: AddressBookImpl::createOrUpdate() fix setting the N property (detailed name).
     
@@ -177,6 +204,7 @@ Date:   Tue Jun 10 00:20:15 2025 +0200
 commit df6e7b5821f86cda490091edd6c50ddd1e6dec50
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon Jun 9 13:14:18 2025 +0200
+Status: CP
 
     NC-PR: AddressBookImpl.php::createOrUpdate() fix changing categories.
     
@@ -193,6 +221,7 @@ Date:   Mon Jun 9 13:14:18 2025 +0200
 commit d99a4ea4163e4f909ec9891f4a025f85e37a61a6
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue May 20 12:30:15 2025 +0200
+Status: CP
 
     Files\Command\SanitizeFilenames -- also print the path of the renamed file.
     
@@ -202,6 +231,7 @@ Date:   Tue May 20 12:30:15 2025 +0200
 commit 8c38f1ca7f43dc7c604b7c804aa9a155791bea6c
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue May 13 12:23:23 2025 +0200
+Status: CP
 
     FileEntryPreview: hack in order to mount cafevdb mount points.
     
@@ -213,36 +243,42 @@ Date:   Tue May 13 12:23:23 2025 +0200
 commit d273522a4e6c244598b14e3f78700fcf2f93b44d
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon May 12 19:19:14 2025 +0200
+Status: CP
 
     apps/files, fix verbose error message.
 
 commit bf52f5e472bdfc4bf022f1712eafecac6e312daf
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon May 12 10:17:02 2025 +0200
+Status: CP
 
     PHP lib/ NotFoundException's -- useless without filename.
 
 commit 674693b248c635ca56fed004a0f1e4097ca57c50
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue May 13 12:28:03 2025 +0200
+Status: CP
 
     core, LoginFlowV2Service: log the original exception also ("... caused by ...")
 
 commit cb6701ea4d7d9a3848187e350a4fe5bfe1de78d5
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Apr 18 17:02:06 2025 +0200
+Status: CP
 
     LDAP LoginListener.php denoise
 
 commit 9f8508f0aecd5db489391e2d63a9c2627974ae22
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Apr 18 17:01:51 2025 +0200
+Status: CP
 
     GenerateBlurhashMetaData.php, fix PHP error
 
 commit c83f18e6bf08b09b6db38f3e8985d0b8992dbc8d
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Apr 17 11:15:11 2025 +0200
+Status: CP
 
     AppFramework...Request: return localhost for remote address if in CLI mode.
     
@@ -252,30 +288,35 @@ Date:   Thu Apr 17 11:15:11 2025 +0200
 commit e3a46d3258ee4e744cc537d3f2341619ac9ec8a1
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Apr 16 16:50:58 2025 +0200
+Status: CP
 
     Core DB QueryBuilder, disable restriction checks targeting Oracle and PostgresQL.
 
 commit 168445a075b81252e560310717f256059bd68f59
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Feb 19 00:36:33 2026 +0100
+Status: CP
 
     Run occ with php8.5
 
 commit 92e1259508a71d82df3f1c7431b8ea45aea8d817
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon Apr 14 11:02:03 2025 +0200
+Status: CP
 
     Makefile target + tweak in order to generate the current docs from Github.
 
 commit f022ccb4c3b6297c5386cd0988a357c55ac41b71
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Apr 8 20:40:45 2025 +0200
+Status: CP
 
     Makefile, dev: target
 
 commit 351e1be7a58cb8b0ebcf827759fdac6c07f590a6
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Apr 3 11:55:55 2025 +0200
+Status: CP
 
     UpdateGroupsService: do not announce new groups without users in the log.
     
@@ -287,6 +328,7 @@ Date:   Thu Apr 3 11:55:55 2025 +0200
 commit c8ff5c10ea87f4e581614646e82a151b209eb92d
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Apr 3 10:57:40 2025 +0200
+Status: CP
 
     2FA Provider loader: also log the original exception, because ...
     
@@ -295,12 +337,14 @@ Date:   Thu Apr 3 10:57:40 2025 +0200
 commit 208e9d4dba402bf3775b6b31b4b438e657b85526
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Feb 28 18:48:52 2025 +0100
+Status: CP
 
     Util::addScript() -- do not add null scripts.
 
 commit 1d499d0790c78ce0a4cf67b608ad4dfb3ada2c22
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sat Feb 15 20:29:28 2025 +0100
+Status: CP
 
     [CORE] Template\Base.php: catch Throawables, otherwise PHP errors may lead to leaking output.
     
@@ -312,6 +356,7 @@ Date:   Sat Feb 15 20:29:28 2025 +0100
 commit e0a9a4fa53f0a9f7a0a9631246283b385f44c8fd
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Feb 14 13:47:26 2025 +0100
+Status: CP
 
     Http\Dispatcher: denoise excessive query logging
 
@@ -324,12 +369,14 @@ Date:   Wed Feb 12 00:41:44 2025 +0100
 commit 009c9b34e8bb3b585782236c006201fe811c3edc
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Feb 11 22:26:07 2025 +0100
+Status: Perhaps no longer neccessary.
 
     Add the option to enable unsafe-eval "globally", primarily to allow vue devtools
 
 commit 001e46469da29e1e95384593ac658e9d85f54395
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sun Feb 9 23:09:05 2025 +0100
+Status: CP
 
     Mailer: add config options to prevent email sending while developing software.
     
@@ -342,18 +389,21 @@ Date:   Sun Feb 9 23:09:05 2025 +0100
 commit 06b20db75bf0b90d26de4ee1a3dfc75d4887df50
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sat Feb 1 23:18:03 2025 +0100
+Status: CP
 
     L10N, updateHtaccess: allow to load other apps l10n data.
 
 commit 6994e1689db4169e1585f3d538a3cd26f666092b
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Jan 30 09:38:31 2025 +0100
+Status: CP
 
     Core, exception templates: print also the messages from chained exceptions.
 
 commit 0118e7730c8aceb4d50bcb9ed65b63418f127815
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Sep 3 01:44:52 2024 +0200
+Status: CP
 
     Changed email address, inform also about the old email address.
     
@@ -364,6 +414,7 @@ Date:   Tue Sep 3 01:44:52 2024 +0200
 commit 72c4d1be0aa5d01f4b2d5b7404553531c7ea58d6
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sat May 25 20:31:41 2024 +0200
+Status: CP
 
     Setup-checks: optionally disable different owner check.
     
@@ -372,12 +423,14 @@ Date:   Sat May 25 20:31:41 2024 +0200
 commit 67456faaad8dd1c815f733afdefb6fc81b723cc6
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Feb 9 12:04:02 2024 +0100
+Status: CP
 
     BackgroundJob\JobList: log exceptions from individual jobs.
 
 commit 3bb153144a95a0ee0aca0c52d4184d39105c5635
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Feb 6 13:16:57 2024 +0100
+Status: CP
 
     user_ldap: additional switch to forcibly use the group-name even if it already exists.
     
@@ -386,48 +439,56 @@ Date:   Tue Feb 6 13:16:57 2024 +0100
 commit 5f31f70d3774707231db0708cb26655800bc6d54
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon Feb 5 14:03:35 2024 +0100
+Status: CP
 
     UserManager, GroupManager: use a predictable ordering of backends.
 
 commit 9b44c993eb0b8f1417690a85310b79ed59028bd6
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Feb 2 21:48:57 2024 +0100
+Status: CP
 
     Disable graceful user adding to groups in order to test event-scheme reimplentation.
 
 commit 64975cdc08ef004c7444d69882c1a4c7806f5669
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Feb 1 21:17:46 2024 +0100
+Status: CP
 
     files-app, provide more descriptive error message s.v.p.
 
 commit 8dc42cabf34340c5329275b32b06534d12b96e7a
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sat Jan 27 21:14:48 2024 +0100
+Status: CP
 
     Try catch around event dispatching.
 
 commit f40305e8635105fd001d1e49152568eaed4087fa
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Jan 10 14:36:48 2024 +0100
+Status: CP
 
     ContactsStore: use EMAIL if FN is unset, and  use !empty() in favour of isset() as FN CAN BE SET but be empty
 
 commit e9ed30280c8f335e5c99806d95c8caa8d127eaac
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Nov 24 10:22:50 2023 +0100
+Status: CP
 
     Add occ commit, upgrade and mimetypes update to Makefile
 
 commit 4b16b39cdcb6651892ced94160a1fd0a8f97dcd0
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Aug 30 11:44:59 2023 +0200
+Status: CP
 
     Initialize language from locale instead of from the request if in console mode.
 
 commit 6031fa3272756c9f51187175f0b68d86ccfb8f95
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Aug 25 01:13:08 2023 +0200
+Status: CP
 
     Workflowengine: listen to cache events.
     
@@ -439,6 +500,7 @@ Date:   Fri Aug 25 01:13:08 2023 +0200
 commit f3267022ae4c2b4c14cda35a46ac8241b0117073
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Aug 24 15:10:04 2023 +0200
+Status: CP
 
     Workflowengine: add a new FilePath check which matches the complete path, including the mountpoint.
     
@@ -447,6 +509,7 @@ Date:   Thu Aug 24 15:10:04 2023 +0200
 commit d3881d03d9e1b9fb4a3ce8f41bd04daded901a4b
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sat Jan 6 17:46:12 2024 +0100
+Status: CP
 
     Makefile: Run audit fix and update browserlist with npm-init:
     
@@ -455,6 +518,7 @@ Date:   Sat Jan 6 17:46:12 2024 +0100
 commit 40e57b36af2e3ecb4d8ee525bd5e661fc1901ff0
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Jun 20 11:48:33 2023 +0200
+Status: CP
 
     Protect some code paths when authenticating in console mode.
     
@@ -465,36 +529,42 @@ Date:   Tue Jun 20 11:48:33 2023 +0200
 commit ebc1b6a09fe556722849e01d67f46caf8a9b6367
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Apr 13 15:54:12 2023 +0200
+Status: CP
 
     CalDAV\Activity\Backend: fix array to string conversion.
 
 commit 4bf4bf5f793a4c91d39e00c6bcc1f01ae5080542
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
-Date:   Sun Mar 19 22:48:22 2023 +0100
+Date:Status: CP
+   Sun Mar 19 22:48:22 2023 +0100
 
     Silence noisy workflowengine app.
 
 commit c32cd98298ff0c585b707245387019f97ed7262e
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sun Jan 8 23:32:00 2023 +0100
+Status: CP
 
     Don't flag package-lock.json binary.
 
 commit b6a133a33e797e7a6bc8fa3cd7ff214e36b661b0
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Oct 12 13:24:10 2022 +0200
+Status: CP
 
     ControllerMethodReflector -- silence a PHP warning.
 
 commit fd315b7cccfadfcd4e17a816814fa6d76ee4f25e
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Aug 31 15:32:01 2022 +0200
+Status: NeedsRefactor
 
     Settings, user groups: restrict the display to roughly 10 lines height.
 
 commit 2600fdfaf52041020d75685e2c9c5abab2f58ad5
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Jun 20 12:40:16 2023 +0200
+Status: CP
 
     Files\View::rename() -- emit "rename" hooks already if one of the two files is inside the user storage.
     
@@ -507,6 +577,7 @@ Date:   Tue Jun 20 12:40:16 2023 +0200
 commit c10cc6e19baee327e5fbc1399bb161d1b66160b0
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon Jul 18 08:59:54 2022 +0200
+Status: CP
 
     File-system events: in order to distinguish a mkdir from file creation a separate event is needed.
     
@@ -517,6 +588,7 @@ Date:   Mon Jul 18 08:59:54 2022 +0200
 commit ac5dc63139bee9f48d1a941574fd08f949c778da
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Jul 15 12:03:44 2022 +0200
+Status: CP
 
     Files\Node\HookConnector: fix node type for non-existing rename and copy sources/targets.
     
@@ -536,30 +608,35 @@ Date:   Fri Jul 15 12:03:44 2022 +0200
 commit cb5564955799ed70609c5d19efa5bb8df9e23352
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon Feb 7 16:46:22 2022 +0100
+Status: CP
 
     Prepare for adding groups with specified backend.
 
 commit d383a7b539cf07019e39bac6f72f9ce74a7d9573
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sun May 22 17:33:41 2022 +0200
+Status: CP
 
     OCSBadRequestException: allow Throwable as "previous" parameter, any reason to only allow \Exception?
 
 commit 7dcdea9300e47dee310b894cd9f224947c71d227
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Feb 18 00:34:53 2022 +0100
+Status: dropped
 
     IConfig::getUsersForUserValue() -- interprete null value as request to fetch all users with given key set.
 
 commit ce0e5879cc9490505ea92f03e8b0679ce9e76ecf
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon Feb 7 16:46:44 2022 +0100
+Status: CP
 
     Continue adding a user to a group until any of the group backends succeeds
 
 commit 36a4f10bd7d8485498917cc3a531d0a48462aac7
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Jan 11 08:48:10 2022 +0100
+Status: CP
 
     Avoid excessive mount cache shootdown for authenticated and non-shareable mounts.
     
@@ -581,6 +658,7 @@ Date:   Tue Jan 11 08:48:10 2022 +0100
 commit 49e562f81398b3e0eda83106a56b3cf28b4b12a9
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Dec 7 14:55:16 2021 +0100
+Status: CP
 
     Address cache efficiency for the case of a large number of mounts.
     
@@ -591,6 +669,7 @@ Date:   Tue Dec 7 14:55:16 2021 +0100
 commit bd93f1394e71954abaef998fb9196919e353a6b0
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Dec 7 14:18:44 2021 +0100
+Status: CP
 
     MountProviderCollection::registerProvider() -- optional priority in order to register first or last.
     
@@ -603,24 +682,28 @@ Date:   Tue Dec 7 14:18:44 2021 +0100
 commit 4fccc513ee965bd1a9fd8cf627db4877daa5015d
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Jun 20 10:00:07 2023 +0200
+Status: CP
 
     Catch more exceptions during migrations.
 
 commit be104d093e8f23b5530ab0c76aee09204a346fe6
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sat Oct 2 22:26:04 2021 +0200
+Status: CP
 
     Add auto-complete php for emacs.
 
 commit c3dae33db613b3e251e2ce8022a9db0c87c8b83b
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sat Jan 6 15:17:35 2024 +0100
+Status: CP
 
     Undelete an "offline user" if createUser() is called with the same uid.
 
 commit 8048b7e39bc30cb1d4870d30cfe4b13cca26cb0b
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Sep 30 18:04:58 2021 +0200
+Status: CP
 
     Fix userExists() to really check if it exists in LDAP.
     
@@ -632,6 +715,7 @@ Date:   Thu Sep 30 18:04:58 2021 +0200
 commit 8ab3f25c12df4488e2d07e4b74cbd5b0b2ccb666
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sat Feb 3 12:27:55 2024 +0100
+Status: CP
 
     private/User/Manager.php: make the ordering of backends predictable.
     
@@ -647,78 +731,91 @@ Date:   Sat Feb 3 12:27:55 2024 +0100
 commit b3acde67f51815662e5b6f2cdc01e7fecafe457f
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Sep 29 15:08:01 2021 +0200
+Status: CP
 
     Danger Zone: optionally force the configured LDAP uid even if the user already exists.
 
 commit 18fe37e392a5b6fc980e75793f0ecef865dec4ec
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Sep 23 11:33:54 2021 +0200
+Status: CP
 
     legacy/OC_Image.php: complete the half-hearted fix for PHP8.
 
 commit c2658a680dadfb85a2d8047ad2cc8aeb99369f04
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Mon Aug 30 13:44:31 2021 +0200
+Status: CP
 
     L10N: allow to escape pipe characters by prepdending another pipe.
 
 commit 127a9e6eb0f72fff1fa0721761ce5f8e4ca2ce44
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sat Aug 17 10:36:37 2024 +0200
+Status: CP
 
     Exception template: separate config for verbose exception (even if non-debug)
 
 commit ed2b429fe7b91ecb4e0ce9b7969ce5a9d45d7e3b
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Aug 25 00:10:43 2021 +0200
+Status: CP
 
     SVG Preview: allow xlink:href for local anchors.
 
 commit c3692f2d725ad816ad4b2ae54358e24f9b4a2f24
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Thu Mar 11 10:08:38 2021 +0100
+Status: CP
 
     Increase upload limits and memory size and bump max_input_vars to infty.
 
 commit 8f76ab82864539841ea81ddb4f6042d0265fa4d2
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue May 25 23:17:16 2021 +0200
+Status: CP
 
     DateTimeFormatter, L10N allow any \DateTimeInterface class.
 
 commit fd1d0bbcd1949f79a449241adf1da052124cb3c9
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Jul 7 14:47:44 2021 +0200
+Status: CP
 
     Re-enable counting of users for LDAP.
 
 commit 3f0fb205729ddfade473970f1f485565bb7f40d4
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Sat Aug 17 09:56:47 2024 +0200
+Status: CP
 
     serializeException(): include file and line in top-level message.
 
 commit 489d5585cff52e2da64128e9976c7cc7d69c4e9d
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue May 18 14:36:12 2021 +0200
+Status: CP
 
     IL10N & implementation: Export plain translations array.
 
 commit bf332c7b75ff1c91dc34b1f26126b7f826a003a5
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Wed Feb 17 11:18:57 2021 +0100
+Status: CP
 
     Controller, JSON-Responder: keep the CSP-policy if set by DataResponse.
 
 commit 8fa2f1be8aeff446b80c7507e71e180b8dfd28f7
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Fri Nov 13 00:58:22 2020 +0100
+Status: CP
 
     URLGenerator::imagePath() -- use the full path when doing png/svg alterations.
 
 commit c9bf05a289eac4d5e3fbb1891e62f73e8916b275
 Author: Claus-Justus Heine <Claus-Justus.Heine@IANS.Uni-Stuttgart.DE>
 Date:   Sun Oct 18 13:11:17 2020 +0200
+Status: CP
 
     SimpleContainer: Include the original ReflectionException.
     
@@ -728,6 +825,7 @@ Date:   Sun Oct 18 13:11:17 2020 +0200
 commit 401a6407619e10a46f6ae87a54222bbd52451daf
 Author: Claus-Justus Heine <himself@claus-justus-heine.de>
 Date:   Tue Oct 13 18:56:50 2020 +0200
+Status: CP
 
     Allow groupOfMembers as well.
 
