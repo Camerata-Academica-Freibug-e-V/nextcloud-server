@@ -64,13 +64,15 @@ occ-upgrade:
 	./occ maintenance:mode --off
 	chmod g+w config/config.php
 
+VERSION = $(shell grep VersionString version.php|sed -E "s/^.*VersionString = '([0-9]+).*$$/\1/g")
+
 doc:
 	mkdir -p tmp;\
  cd tmp;\
  rm -rf documentation;\
  git clone https://github.com/nextcloud/documentation.git;\
  cd documentation;\
- git checkout stable34;\
+ git checkout stable$(VERSION);\
  python -m venv venv;\
  source venv/bin/activate;\
  pip install -r requirements.txt;\
