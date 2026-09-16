@@ -70,7 +70,7 @@ doc:
  rm -rf documentation;\
  git clone https://github.com/nextcloud/documentation.git;\
  cd documentation;\
- git checkout stable31;\
+ git checkout stable34;\
  python -m venv venv;\
  source venv/bin/activate;\
  pip install -r requirements.txt;\
