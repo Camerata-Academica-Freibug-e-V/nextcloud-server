@@ -77,6 +77,7 @@ BUILD_COMMANDS=(
     [mail]="make install-deps optimize-js"
     [mail_roundcube]="make \$BUILD_MODE"
     [maps]="rm -rf node_modules package-lock.json && npm install && run-krankerl.sh"
+    [notifications]="make"
     [pdf_downloader]="make \$BUILD_MODE"
     # TODO: remove photos, either use photos or memories, not both
     # [photos]="make dev-setup build-js-production && rm -rf vendor/* && composer install --no-dev"
