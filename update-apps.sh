@@ -110,7 +110,7 @@ REBASE_BRANCHES=(
     [related_resources]=origin/$CORE_BRANCH
     [richdocuments]=origin/$CORE_BRANCH
     [terms_of_service]=origin/stable4.8
-    [twofactor_gateway]=origin/main
+    [twofactor_gateway]=origin/$CORE_BRANCH
     [workflow_pdf_converter]=origin/$CORE_BRANCH
 )
 
@@ -152,7 +152,7 @@ RESET_BRANCHES=(
     [suspicious_login]=origin/$CORE_BRANCH
     [terms_of_service]=origin/stable4.8
     [text]=origin/$CORE_BRANCH
-    [twofactor_gateway]=origin/main
+    [twofactor_gateway]=origin/$CORE_BRANCH
     [twofactor_nextcloud_notification]=origin/$CORE_BRANCH
     [twofactor_totp]=origin/$CORE_BRANCH
     [user_sql]=cjh/production/cafevdb/$CORE_BRANCH
