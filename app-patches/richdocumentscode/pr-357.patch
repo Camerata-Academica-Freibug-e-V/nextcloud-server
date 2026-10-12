@@ -1,0 +1,33 @@
+## Problem
+
+`proxy.php` can forward more bytes than the response's `Content-Length`. If a socket read includes the end of one response and the beginning of the next, the proxy writes both before checking whether it has finished. The equality check then misses the boundary because `$contentWritten` is already too large.
+
+With built-in CODE 26.4.402 (COOLWSD 26.04.4.2), I captured a response declaring 49,307 bytes but sending 49,492: the extra 185 bytes were another empty HTTP response. Behind a reverse proxy, this caused truncated document responses and Chromium `ERR_CONTENT_LENGTH_MISMATCH` errors. A direct Apache connection rendered the same document successfully despite the malformed output.
+
+Related: #329. That report discusses HTTP/2, but this reproduction uses HTTP/1.1. #281 added the length-based stopping condition; this handles reads that cross that boundary.
+
+## Fix
+
+Limit both the body bytes already read with the headers and subsequent reads to the remaining declared length. Responses without `Content-Length` still stream until EOF.
+diff --git a/proxy.php b/proxy.php
+index 0405c33..bdf8b93 100644
+--- a/proxy.php
++++ b/proxy.php
+@@ -460,12 +460,17 @@ function isMultipartRequest($headers)
+             $parsingHeaders = false;
+ 
+             $extOut = fopen("php://output", "w") or errorExit("fundamental error opening PHP output", 500);
++            // A read may also contain bytes from the next HTTP response.
++            if ($contentLength >= 0)
++                $rest = substr($rest, 0, $contentLength);
+             fwrite($extOut, $rest);
+             $contentWritten += strlen($rest);
+             $rest = '';
+             debug_log("passed last headers");
+         }
+     } else {
++        if ($contentLength >= 0)
++            $chunk = substr($chunk, 0, max(0, $contentLength - $contentWritten));
+         fwrite($extOut, $chunk);
+         $contentWritten += strlen($chunk);
+         debug_log("proxy : " . strlen($chunk) . " bytes");
