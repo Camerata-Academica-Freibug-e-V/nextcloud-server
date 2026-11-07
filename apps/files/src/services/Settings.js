@@ -21,9 +21,9 @@ export default class Settings {
 	 * @return {boolean} whether registering was successful
 	 */
 	register(view) {
-		const duplicates = this._settings.filter(e => e.name === view.name)
+		const duplicates = this._settings.filter((e) => e.name === view.name)
 		if (duplicates.length > 0) {
-			console.error('A setting with the same name is already registered', {
+			logger.error('A setting with the same name is already registered', {
 				view,
 				duplicates,
 			})
