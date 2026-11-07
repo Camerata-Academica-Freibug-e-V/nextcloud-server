@@ -183,3 +183,4 @@ core/js/mimetypelist.js
 /cypress
 
 /.direnv
+/build/artifacts/doc/
