@@ -18,18 +18,21 @@ use WeakMap;
 final class ListenerExceptionPolicy {
 	/**
 	 * Keep nested validation failures propagating through enclosing notification listeners.
-	 * @var WeakMap<Throwable, true>|null
+	 * @var WeakMap<Throwable, true>
 	 */
-	private static ?WeakMap $propagating = null;
+	private WeakMap $propagating;
 
-	public static function mustPropagate(object $event, Throwable $exception): bool {
-		self::$propagating ??= new WeakMap();
-		$propagate = isset(self::$propagating[$exception])
+	public function __construct() {
+		$this->propagating = new WeakMap();
+	}
+
+	public function mustPropagate(object $event, Throwable $exception): bool {
+		$propagate = isset($this->propagating[$exception])
 			|| $exception instanceof AbortedEventException
 			|| $event instanceof RestrictInteractionEvent
 			|| $event instanceof ValidatePasswordPolicyEvent;
 		if ($propagate) {
-			self::$propagating[$exception] = true;
+			$this->propagating[$exception] = true;
 		}
 		return $propagate;
 	}

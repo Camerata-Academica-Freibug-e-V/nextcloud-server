@@ -29,6 +29,7 @@ final class ServiceEventListener {
 		private ContainerInterface $container,
 		private string $class,
 		private LoggerInterface $logger,
+		private ListenerExceptionPolicy $exceptionPolicy = new ListenerExceptionPolicy(),
 	) {
 	}
 
@@ -40,7 +41,7 @@ final class ServiceEventListener {
 				//       See https://github.com/nextcloud/server/issues/27793 for details.
 				$this->service = $this->container->get($this->class);
 			} catch (QueryException $e) {
-				if (ListenerExceptionPolicy::mustPropagate($event, $e)) {
+				if ($this->exceptionPolicy->mustPropagate($event, $e)) {
 					throw $e;
 				}
 				$this->logger->error(

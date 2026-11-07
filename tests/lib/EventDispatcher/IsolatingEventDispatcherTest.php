@@ -11,6 +11,7 @@ namespace Test\EventDispatcher;
 
 use OC\EventDispatcher\EventDispatcher;
 use OC\EventDispatcher\IsolatingEventDispatcher;
+use OC\EventDispatcher\ListenerExceptionPolicy;
 use OCP\AppFramework\QueryException;
 use OCP\Broadcast\Events\IBroadcastEvent;
 use OCP\EventDispatcher\ABroadcastedEvent;
@@ -46,7 +47,18 @@ class TestNotificationEvent extends Event {
 
 class IsolatingEventDispatcherTest extends TestCase {
 	private function createDispatcher(ContainerInterface $container, LoggerInterface $logger): EventDispatcher {
-		return new EventDispatcher(new IsolatingEventDispatcher($logger), $container, $logger);
+		$policy = new ListenerExceptionPolicy();
+		return new EventDispatcher(new IsolatingEventDispatcher($logger, $policy), $container, $logger, $policy);
+	}
+
+	public function testExceptionStateIsScopedToPolicyInstance(): void {
+		$failure = new RuntimeException('validation failure');
+		$policy = new ListenerExceptionPolicy();
+		$otherPolicy = new ListenerExceptionPolicy();
+
+		$this->assertTrue($policy->mustPropagate(new ValidatePasswordPolicyEvent('password'), $failure));
+		$this->assertTrue($policy->mustPropagate(new TestNotificationEvent(), $failure));
+		$this->assertFalse($otherPolicy->mustPropagate(new TestNotificationEvent(), $failure));
 	}
 
 	public static function ordinaryFailures(): array {
@@ -246,6 +258,26 @@ class IsolatingEventDispatcherTest extends TestCase {
 		} finally {
 			$dispatcher->removeListener(TestNotificationEvent::class, $throwing);
 			$dispatcher->removeListener(TestNotificationEvent::class, $subsequent);
+		}
+	}
+
+	public function testServerSharesExceptionPolicyAcrossDispatchers(): void {
+		$dispatcher = Server::get(IEventDispatcher::class);
+		$failure = new RuntimeException('nested validation');
+		$validation = static function () use ($failure): void {
+			throw $failure;
+		};
+		$notification = static function () use ($dispatcher): void {
+			$dispatcher->dispatchTyped(new ValidatePasswordPolicyEvent('password'));
+		};
+		$dispatcher->addListener(ValidatePasswordPolicyEvent::class, $validation);
+		$dispatcher->addListener(TestNotificationEvent::class, $notification);
+		try {
+			$this->expectExceptionObject($failure);
+			$dispatcher->dispatchTyped(new TestNotificationEvent());
+		} finally {
+			$dispatcher->removeListener(ValidatePasswordPolicyEvent::class, $validation);
+			$dispatcher->removeListener(TestNotificationEvent::class, $notification);
 		}
 	}
 }
