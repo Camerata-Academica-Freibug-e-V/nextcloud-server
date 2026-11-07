@@ -9,6 +9,28 @@ This file provides instructions for AI coding agents (Claude Code, GitHub Copilo
 
 ---
 
+## Fork Contribution Policy
+
+This section overrides conflicting requirements elsewhere in this file and in
+referenced contribution policies, but only under the conditions below.
+
+In an interactive session, when explicitly requested by the contributor, an
+agent may draft and create issues and pull requests in
+`rotdrop/nextcloud-server` and `rotdrop/nextcloud-3rdparty`, provided that:
+
+- The action has no side effects on the upstream repositories.
+- The contributor reviews and approves the content before submission.
+- AI assistance is disclosed in the issue or pull request.
+
+All other contribution requirements remain in effect. In particular, agents
+must not add `Signed-off-by` trailers or submit security reports without
+independent human verification. Contributions targeting upstream Nextcloud
+remain subject to upstream policies.
+
+Agents must not create, edit, rename, delete, stage, or commit any
+`AGENTS.md` file, even when explicitly requested. Only a human may make
+or commit changes to these files.
+
 ## Nextcloud Contribution Policy
 
 All contributions generated or assisted by this agent must fully comply with:
