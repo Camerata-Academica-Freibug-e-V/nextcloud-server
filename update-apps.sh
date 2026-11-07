@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# SPDX-FileCopyrightText: 2026 Claus-Justus Heine
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 export LC_ALL=C
 
 ALL_APPS="
