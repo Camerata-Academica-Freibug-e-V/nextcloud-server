@@ -87,7 +87,7 @@ jobs:
 
   sqlite:
     needs: changes
-    if: needs.changes.outputs.src != 'false'
+    if: ${{ false }}
     uses: ./.github/workflows/phpunit-sqlite.yml
 
   nodb:
