@@ -3801,6 +3801,12 @@
                     },
                     "canRemove": {
                         "type": "boolean"
+                    },
+                    "backends": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -3817,6 +3823,7 @@
                     "email",
                     "fediverse",
                     "groups",
+                    "namedGroups",
                     "headline",
                     "id",
                     "language",
@@ -3912,6 +3919,12 @@
                     "groups": {
                         "type": "array",
                         "items": {
+                            "type": "string"
+                        }
+                    },
+                    "namedGroups": {
+                        "type": "object",
+                        "additionalProperties": {
                             "type": "string"
                         }
                     },
