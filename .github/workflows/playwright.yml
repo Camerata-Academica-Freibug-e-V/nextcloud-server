@@ -28,7 +28,7 @@ env:
 
 jobs:
   gate:
-    runs-on: ubuntu-latest-low
+    runs-on: ubuntu-latest
     steps:
       - name: Evaluate e2e tests execution conditions
         id: gate-e2e
@@ -270,7 +270,7 @@ jobs:
     if: ${{ !cancelled() && needs.gate.result == 'success' }}
     needs: [gate, playwright-tests, playwright-installer-tests]
 
-    runs-on: ubuntu-latest-low
+    runs-on: ubuntu-latest
     steps:
     - name: Restore context
       id: cache
@@ -323,7 +323,7 @@ jobs:
   summary:
     permissions:
       contents: none
-    runs-on: ubuntu-latest-low
+    runs-on: ubuntu-latest
     needs: [gate, playwright-tests, playwright-installer-tests]
 
     if: always()
