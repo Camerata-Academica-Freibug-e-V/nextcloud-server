@@ -268,6 +268,7 @@ class GroupsController extends AUserDataOCSController {
 	 *
 	 * @param string $groupid ID of the group
 	 * @param string $displayname Display name of the group
+	 * @param string $backendName Name of the group backend
 	 * @return DataResponse<Http::STATUS_OK, list<empty>, array{}>
 	 * @throws OCSException
 	 *
