@@ -53,7 +53,7 @@ class HelpController extends Controller {
 			$mode = 'user';
 		}
 
-		if ($mode == 'user') {
+		if ($mode === 'user') {
 			$lang = '/' . $this->l10n->getLanguageCode();
 		}
 

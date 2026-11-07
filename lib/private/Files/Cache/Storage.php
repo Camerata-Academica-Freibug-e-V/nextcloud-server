@@ -87,17 +87,16 @@ class Storage {
 	}
 
 	/**
-	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int}|null
+	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int, fileid: ?int}|null
 	 */
 	public static function getStorageById(string $storageId): ?array {
 		return self::getGlobalCache()->getStorageInfo($storageId);
 	}
 
 	/**
-	 * @return array
+	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int, fileid: ?int}|null
 	 */
-	public function getStorageInfo()
-	{
+	public function getStorageInfo(): ?array {
 		return self::getGlobalCache()->getStorageInfo($this->storageId);
 	}
 
@@ -127,7 +126,7 @@ class Storage {
 	 *
 	 * @return string|null either the storage id string or null if the numeric id is not known
 	 */
-	public static function getStorageId($numericId) {
+	public static function getStorageId(int $numericId): ?string {
 		return self::getGlobalCache()->getStorageId($numericId);
 	}
 

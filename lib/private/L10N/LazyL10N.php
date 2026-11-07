@@ -52,6 +52,7 @@ class LazyL10N implements IL10N {
 		return $this->getL()->getLocaleCode();
 	}
 
+	#[\Override]
 	public function getTranslations(): array {
 		return $this->getL()->getTranslations();
 	}

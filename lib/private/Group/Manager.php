@@ -15,14 +15,14 @@ use OCA\Settings\Settings\Admin\Users;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\Group\Backend\IBatchMethodsBackend;
 use OCP\Group\Backend\ICreateNamedGroupBackend;
-use OCP\Group\Backend\INamedBackend;
 use OCP\Group\Backend\IGroupDetailsBackend;
+use OCP\Group\Backend\INamedBackend;
 use OCP\Group\Events\BeforeGroupCreatedEvent;
 use OCP\Group\Events\GroupCreatedEvent;
 use OCP\GroupInterface;
 use OCP\ICacheFactory;
-use OCP\IDBConnection;
 use OCP\IConfig;
+use OCP\IDBConnection;
 use OCP\IGroup;
 use OCP\IGroupManager;
 use OCP\IUser;
@@ -119,15 +119,15 @@ class Manager extends PublicEmitter implements IGroupManager {
 				$name = $backendClassName;
 			}
 			$backendNames[$backendClassName] = $name;
-			$backendPriorities[$name] = $backendPriorities[$name] ??
-				(($backend instanceof Database) ? PHP_INT_MIN : 0);
+			$backendPriorities[$name] = $backendPriorities[$name]
+				?? (($backend instanceof Database) ? PHP_INT_MIN : 0);
 		}
 
 		usort(
 			$this->backends,
-			function($left, $right) use ($backendPriorities, $backendNames) {
-				$createUserResult =
-					- (int)$left->implementsActions(Backend::CREATE_GROUP)
+			function ($left, $right) use ($backendPriorities, $backendNames) {
+				$createUserResult
+					= - (int)$left->implementsActions(Backend::CREATE_GROUP)
 					+ (int)$right->implementsActions(Backend::CREATE_GROUP);
 				if ($createUserResult) {
 					return $createUserResult;
@@ -141,7 +141,7 @@ class Manager extends PublicEmitter implements IGroupManager {
 				$rightPriority = $backendPriorities[$rightName];
 
 				$priorityResult = (int)($leftPriority < $rightPriority) - (int)($leftPriority > $rightPriority);
-				return $priorityResult ?: strcmp($leftName,  $rightName);
+				return $priorityResult ?: strcmp($leftName, $rightName);
 			}
 		);
 
@@ -327,15 +327,18 @@ class Manager extends PublicEmitter implements IGroupManager {
 	 * @param GroupInterface] $backend
 	 * @return \OCP\IGroup|null
 	 */
-	public function createGroupFromBackend($gid, GroupInterface $backend)
-	{
-		if ($group = $this->get($gid) && $group->getBa) {
+	public function createGroupFromBackend($gid, GroupInterface $backend) {
+		$group = $this->get($gid);
+		if ($group !== null) {
 			return $group;
 		}
 		if ($backend->implementsActions(Backend::CREATE_GROUP)) {
 			$this->emit('\OC\Group', 'preCreate', [$gid]);
-			if ($backend->createGroup($gid)) {
-				$group = $this->getGroupObject($gid);
+			$createdGroupId = $backend instanceof ICreateNamedGroupBackend
+				? $backend->createGroup($gid)
+				: (method_exists($backend, 'createGroup') && $backend->createGroup($gid) ? $gid : null);
+			if ($createdGroupId !== null) {
+				$group = $this->getGroupObject($createdGroupId);
 				$this->emit('\OC\Group', 'postCreate', [$group]);
 				return $group;
 			}
@@ -347,7 +350,7 @@ class Manager extends PublicEmitter implements IGroupManager {
 	 * @param string $search
 	 * @param ?int $limit
 	 * @param ?int $offset
-	 * @return \OC\Group\Group[]
+	 * @return list<\OCP\IGroup>
 	 */
 	#[\Override]
 	public function search(string $search, ?int $limit = null, ?int $offset = 0) {

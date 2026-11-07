@@ -1838,7 +1838,7 @@ class AppConfig implements IAppConfig {
 	 * @see \OCP\Config\Lexicon\ILexicon::getStrictness()
 	 */
 	private function applyLexiconStrictness(?Strictness $strictness, string $configAppKey): bool {
-		if (true || $strictness === null) {
+		if ($strictness === null) {
 			return true;
 		}
 

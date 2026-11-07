@@ -79,7 +79,7 @@ interface IGroupManager {
 
 	/**
 	 * @param string $gid
-	 * @param GroupInterface] $backend
+	 * @param \OCP\GroupInterface $backend
 	 * @return \OCP\IGroup|null
 	 * @since 23.0.0
 	 */

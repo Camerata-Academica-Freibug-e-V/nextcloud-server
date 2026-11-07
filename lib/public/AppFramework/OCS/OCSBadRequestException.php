@@ -7,8 +7,8 @@
 
 namespace OCP\AppFramework\OCS;
 
-use Throwable;
 use OCP\AppFramework\Http;
+use Throwable;
 
 /**
  * Class OCSBadRequestException
@@ -20,7 +20,7 @@ class OCSBadRequestException extends OCSException {
 	 * OCSBadRequestException constructor.
 	 *
 	 * @param string $message
-	 * @param Exception|null $previous
+	 * @param \Throwable|null $previous
 	 * @since 9.1.0
 	 */
 	public function __construct($message = '', ?Throwable $previous = null) {
