@@ -67,18 +67,17 @@ occ-upgrade:
 VERSION = $(shell grep VersionString version.php|sed -E "s/^.*VersionString = '([0-9]+).*$$/\1/g")
 
 doc:
-	mkdir -p tmp;\
- cd tmp;\
- rm -rf documentation;\
- git clone https://github.com/nextcloud/documentation.git;\
- cd documentation;\
- git checkout stable$(VERSION);\
- python -m venv venv;\
- source venv/bin/activate;\
- pip install -r requirements.txt;\
- make admin-manual-html user-manual-html;\
- rsync -a --delete --exclude .buildinfo admin_manual/_build/html/com/. ../../core/doc/admin/.;\
- rsync -a --delete --exclude .buildinfo user_manual/_build/html/. ../../core/doc/user/.
+	set -euo pipefail; \
+	mkdir -p tmp build/artifacts/doc; \
+	git clone --branch stable$(VERSION) https://github.com/nextcloud/documentation.git tmp/documentation; \
+	cd tmp/documentation; \
+	python -m venv venv; \
+	source venv/bin/activate; \
+	pip install -r requirements.txt; \
+	$(MAKE) admin-manual-html user-manual-html; \
+	mkdir -p archive/admin archive/user; \
+	rsync -a --exclude .buildinfo admin_manual/_build/html/com/ archive/admin/; \
+	rsync -a --exclude .buildinfo user_manual/_build/html/ archive/user/; \
+	find archive/user -name "*.html" -exec sed -i 's|href="/server/latest/user_manual|href="/core/doc/user|g' {} \; ; \
+	tar -czf ../../build/artifacts/doc/documentation-$(VERSION).tar.gz -C archive admin user
 	rm -rf tmp/documentation
-	cd core/doc/user/;\
- find . -name "*.html" -exec sed -i 's|href="/server/latest/user_manual|href="/core/doc/user|g' {} \;
