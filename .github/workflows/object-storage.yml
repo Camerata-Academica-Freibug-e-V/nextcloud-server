@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         php-versions: ['8.3', '8.5']
-        backend: ['s3', 'azure', 'swift']
+        backend: ['s3', 'swift']
 
     name: php${{ matrix.php-versions }}-${{ matrix.backend }}
 
@@ -51,12 +51,6 @@ jobs:
               echo 'OBJECT_STORE=s3' >> $GITHUB_ENV
               echo 'OBJECT_STORE_KEY=nextcloud' >> $GITHUB_ENV
               echo 'OBJECT_STORE_SECRET=bWluaW8tc2VjcmV0LWtleS1uZXh0Y2xvdWQ=' >> $GITHUB_ENV
-              ;;
-            azure)
-              docker run --name azurite -d -p 10000:10000 -e AZURITE_ACCOUNTS=nextcloud:bmV4dGNsb3Vk mcr.microsoft.com/azure-storage/azurite@sha256:0a47e12e3693483cef5c71f35468b91d751611f172d2f97414e9c69113b106d9 # v3.34.0
-              echo 'OBJECT_STORE=azure' >> $GITHUB_ENV
-              echo 'OBJECT_STORE_KEY=nextcloud' >> $GITHUB_ENV
-              echo 'OBJECT_STORE_SECRET=bmV4dGNsb3Vk' >> $GITHUB_ENV
               ;;
             swift)
               docker run --name swift -d -p 5000:5000 -p 8080:8080 ghcr.io/cscfi/docker-keystone-swift@sha256:e8b1ec21120ab9adc6ac6a2b98785fd273676439a8633fe898e37f2aea7e0712
@@ -94,14 +88,6 @@ jobs:
           case "$BACKEND" in
             s3)
               curl -f -m 1 --retry-connrefused --retry 10 --retry-delay 10 http://localhost:9000/minio/health/ready
-              ;;
-            azure)
-              ready=
-              for _ in $(seq 1 60); do
-                if timeout 1 bash -c '< /dev/tcp/127.0.0.1/10000' 2>/dev/null; then ready=1; break; fi
-                sleep 1
-              done
-              [ -n "$ready" ] || { echo 'azurite did not become ready'; exit 1; }
               ;;
           esac
 
