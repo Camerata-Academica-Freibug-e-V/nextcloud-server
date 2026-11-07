@@ -9,6 +9,7 @@ declare(strict_types=1);
 $expectedFiles = [
 	'.',
 	'..',
+	'.ac-php-conf.json',
 	'.devcontainer',
 	'.editorconfig',
 	'.envrc',
@@ -88,6 +89,7 @@ $expectedFiles = [
 	'tests',
 	'themes',
 	'tsconfig.json',
+	'update-apps.sh',
 	'vendor-bin',
 	'version.php',
 	'vite.config.ts',
