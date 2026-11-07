@@ -17,6 +17,7 @@ use Throwable;
 final class IsolatingEventDispatcher extends EventDispatcher {
 	public function __construct(
 		private LoggerInterface $logger,
+		private ListenerExceptionPolicy $exceptionPolicy = new ListenerExceptionPolicy(),
 	) {
 		parent::__construct();
 	}
@@ -30,7 +31,7 @@ final class IsolatingEventDispatcher extends EventDispatcher {
 			try {
 				$listener($event, $eventName, $this);
 			} catch (Throwable $exception) {
-				if (ListenerExceptionPolicy::mustPropagate($event, $exception)) {
+				if ($this->exceptionPolicy->mustPropagate($event, $exception)) {
 					throw $exception;
 				}
 				$this->logger->error('Exception in event handler', ['exception' => $exception]);

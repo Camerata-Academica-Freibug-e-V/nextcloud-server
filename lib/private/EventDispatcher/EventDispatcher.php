@@ -27,6 +27,7 @@ class EventDispatcher implements IEventDispatcher {
 		private SymfonyDispatcher $dispatcher,
 		private ContainerInterface $container,
 		private LoggerInterface $logger,
+		private ListenerExceptionPolicy $exceptionPolicy = new ListenerExceptionPolicy(),
 	) {
 		// inject the event dispatcher into the logger
 		// this is done here because there is a cyclic dependency between the event dispatcher and logger
@@ -55,7 +56,8 @@ class EventDispatcher implements IEventDispatcher {
 		$listener = new ServiceEventListener(
 			$this->container,
 			$className,
-			$this->logger
+			$this->logger,
+			$this->exceptionPolicy,
 		);
 
 		$this->addListener($eventName, $listener, $priority);
@@ -83,7 +85,7 @@ class EventDispatcher implements IEventDispatcher {
 				);
 			}
 		} catch (Throwable $t) {
-			if (ListenerExceptionPolicy::mustPropagate($event, $t)) {
+			if ($this->exceptionPolicy->mustPropagate($event, $t)) {
 				throw $t;
 			}
 			$this->logger->error(
