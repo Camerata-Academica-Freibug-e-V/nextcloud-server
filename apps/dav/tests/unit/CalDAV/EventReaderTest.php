@@ -620,7 +620,7 @@ class EventReaderTest extends TestCase {
 		// construct event reader
 		$er = new EventReader($vCalendar, $vCalendar->VEVENT[0]->UID->getValue());
 		// test set by constructor
-		$this->assertEquals(2, $er->recurringConcludesAfter());
+		$this->assertEquals(3, $er->recurringConcludesAfter());
 
 		/** test rdate (multiple property instances) recurrance */
 		$vCalendar = clone $this->vCalendar1a;
@@ -629,7 +629,7 @@ class EventReaderTest extends TestCase {
 		// construct event reader
 		$er = new EventReader($vCalendar, $vCalendar->VEVENT[0]->UID->getValue());
 		// test set by constructor
-		$this->assertEquals(2, $er->recurringConcludesAfter());
+		$this->assertEquals(3, $er->recurringConcludesAfter());
 
 		/** test rrule and rdate recurrance */
 		$vCalendar = clone $this->vCalendar1a;
@@ -640,6 +640,49 @@ class EventReaderTest extends TestCase {
 		// test set by constructor
 		$this->assertEquals(8, $er->recurringConcludesAfter());
 
+	}
+
+	public function testRecurringCountDeduplicatesDatesAndPreservesIteratorState(): void {
+		$vCalendar = clone $this->vCalendar1a;
+		$vCalendar->VEVENT[0]->add('RRULE', 'FREQ=WEEKLY;COUNT=6;BYDAY=MO,WE,FR');
+		$vCalendar->VEVENT[0]->add('RDATE', '20240715T080000,20240703T080000,20240701T080000', ['TZID' => 'America/Toronto']);
+		$vCalendar->VEVENT[0]->add('RDATE', '20240715T080000', ['TZID' => 'America/Toronto']);
+		$er = new EventReader($vCalendar, $vCalendar->VEVENT[0]->UID->getValue());
+		$before = $er->recurrenceDate();
+		$this->assertSame(7, $er->recurringConcludesAfter());
+		$this->assertSame(7, $er->recurringConcludesAfter());
+		$this->assertEquals($before, $er->recurrenceDate());
+	}
+
+	public function testRecurringCountDeduplicatesRDatesWithoutRule(): void {
+		$vCalendar = clone $this->vCalendar1a;
+		$vCalendar->VEVENT[0]->add('RDATE', '20240701T080000,20240703T080000,20240703T080000', ['TZID' => 'America/Toronto']);
+		$er = new EventReader($vCalendar, $vCalendar->VEVENT[0]->UID->getValue());
+		$this->assertSame(2, $er->recurringConcludesAfter());
+	}
+
+	public function testRecurringCountIsUnknownForRuleWithoutCountAndRDates(): void {
+		$vCalendar = clone $this->vCalendar1a;
+		$vCalendar->VEVENT[0]->add('RRULE', 'FREQ=WEEKLY;BYDAY=MO,WE,FR');
+		$vCalendar->VEVENT[0]->add('RDATE', '20240715T080000', ['TZID' => 'America/Toronto']);
+		$er = new EventReader($vCalendar, $vCalendar->VEVENT[0]->UID->getValue());
+		$this->assertNull($er->recurringConcludesAfter());
+	}
+
+	public function testRecurringCountIncludesDatesBeforeRuleStart(): void {
+		$vCalendar = clone $this->vCalendar1a;
+		$vCalendar->VEVENT[0]->add('RRULE', 'FREQ=DAILY;COUNT=2');
+		$vCalendar->VEVENT[0]->add('RDATE', '20240630T080000,20240701T080000,20240703T080000', ['TZID' => 'America/Toronto']);
+		$er = new EventReader($vCalendar, $vCalendar->VEVENT[0]->UID->getValue());
+		$this->assertSame(4, $er->recurringConcludesAfter());
+	}
+
+	public function testRecurringCountIsUnknownForUntilRuleAndRDates(): void {
+		$vCalendar = clone $this->vCalendar1a;
+		$vCalendar->VEVENT[0]->add('RRULE', 'FREQ=DAILY;UNTIL=20240712T120000Z');
+		$vCalendar->VEVENT[0]->add('RDATE', '20240715T080000', ['TZID' => 'America/Toronto']);
+		$er = new EventReader($vCalendar, $vCalendar->VEVENT[0]->UID->getValue());
+		$this->assertNull($er->recurringConcludesAfter());
 	}
 
 	public function testRecurringConcludesOn(): void {
