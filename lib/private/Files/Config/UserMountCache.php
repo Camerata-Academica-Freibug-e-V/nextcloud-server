@@ -217,8 +217,8 @@ class UserMountCache implements IUserMountCache {
 			->set('storage_id', $builder->createNamedParameter($mount->getStorageId()))
 			->set('mount_id', $builder->createNamedParameter($mount->getMountId(), IQueryBuilder::PARAM_INT))
 			->set('mount_provider_class', $builder->createNamedParameter($mount->getMountProvider()))
-			->set('enable_sharing', $builder->createNamedParameter($mount->getEnableSharing(), IQueryBuilder::PARAM_BOOL))
-			->set('authenticated', $builder->createNamedParameter($mount->getAuthenticated(), IQueryBuilder::PARAM_BOOL))
+			->set('enable_sharing', $builder->createNamedParameter((int)$mount->getEnableSharing(), IQueryBuilder::PARAM_INT))
+			->set('authenticated', $builder->createNamedParameter((int)$mount->getAuthenticated(), IQueryBuilder::PARAM_INT))
 			->where($builder->expr()->eq('user_id', $builder->createNamedParameter($mount->getUser()->getUID())))
 			->andWhere($builder->expr()->eq('root_id', $builder->createNamedParameter($mount->getRootId(), IQueryBuilder::PARAM_INT)))
 			->andWhere($builder->expr()->eq('mount_point_hash', $builder->createNamedParameter($hash)));
@@ -276,7 +276,8 @@ class UserMountCache implements IUserMountCache {
 
 	/**
 	 * @param IUser $user
-	 * @param bool $sharable
+	 * @param bool|null $shareable
+	 * @param bool|null $authenticated
 	 * @return ICachedMountInfo[]
 	 */
 	#[\Override]
@@ -285,17 +286,18 @@ class UserMountCache implements IUserMountCache {
 		if (!$this->userManager->userExists($userUID)) {
 			return [];
 		}
-		if (!isset($this->mountsForUsers[$userUID])) {
+		$filtered = $shareable !== null || $authenticated !== null;
+		if ($filtered || !isset($this->mountsForUsers[$userUID])) {
 			$builder = $this->connection->getQueryBuilder();
 			$query = $builder->select('storage_id', 'root_id', 'user_id', 'mount_point', 'mount_id', 'mount_provider_class', 'enable_sharing', 'authenticated')
 				->from('mounts', 'm')
 				->where($builder->expr()->eq('user_id', $builder->createNamedParameter($userUID)));
 
 			if ($shareable !== null) {
-				$query->andWhere($builder->expr()->eq('enable_sharing', $builder->createNamedParameter($shareable)));
+				$query->andWhere($builder->expr()->eq('enable_sharing', $builder->createNamedParameter((int)$shareable, IQueryBuilder::PARAM_INT)));
 			}
 			if ($authenticated !== null) {
-				$query->andWhere($builder->expr()->eq('authenticated', $builder->createNamedParameter($authenticated)));
+				$query->andWhere($builder->expr()->eq('authenticated', $builder->createNamedParameter((int)$authenticated, IQueryBuilder::PARAM_INT)));
 			}
 
 			$result = $query->executeQuery();
@@ -309,6 +311,9 @@ class UserMountCache implements IUserMountCache {
 				if ($mount !== null) {
 					$mounts[$mount->getKey()] = $mount;
 				}
+			}
+			if ($filtered) {
+				return $mounts;
 			}
 			$this->mountsForUsers[$userUID] = $mounts;
 		}
