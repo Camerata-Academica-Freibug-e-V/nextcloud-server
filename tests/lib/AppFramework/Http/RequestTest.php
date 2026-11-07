@@ -1471,7 +1471,7 @@ class RequestTest extends \Test\TestCase {
 
 	public function testGetPathInfoNotProcessible(): void {
 		$this->expectException(\Exception::class);
-		$this->expectExceptionMessage('The requested uri(/foo.php) cannot be processed by the script \'/var/www/index.php\')');
+		$this->expectExceptionMessage('The requested uri (\'/foo.php\') cannot be processed by the script \'/var/www/index.php\')');
 
 		$request = new Request(
 			[
@@ -1491,7 +1491,7 @@ class RequestTest extends \Test\TestCase {
 
 	public function testGetRawPathInfoNotProcessible(): void {
 		$this->expectException(\Exception::class);
-		$this->expectExceptionMessage('The requested uri(/foo.php) cannot be processed by the script \'/var/www/index.php\')');
+		$this->expectExceptionMessage('The requested uri (\'/foo.php\') cannot be processed by the script \'/var/www/index.php\')');
 
 		$request = new Request(
 			[
