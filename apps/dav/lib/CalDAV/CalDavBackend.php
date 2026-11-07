@@ -1602,7 +1602,9 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 			} elseif ($calendarType === self::CALENDAR_TYPE_FEDERATED) {
 				// TODO: implement custom event for federated calendars
 			}
-			$etag = $event->getEtag();
+			if (isset($event)) {
+				$etag = $event->getEtag();
+			}
 
 			return $etag === null ? null : '"' . $etag . '"';
 		}, $this->db);
@@ -1678,7 +1680,8 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 					$calendarRow = $this->getCalendarById($calendarId);
 					$shares = $this->getShares($calendarId);
 
-					$this->dispatcher->dispatchTyped(new CalendarObjectUpdatedEvent($calendarId, $calendarRow, $shares, $objectRow, $oldObjectRow));
+					$event = new CalendarObjectUpdatedEvent($calendarId, $calendarRow, $shares, $objectRow, $oldObjectRow, $etag);
+					$this->dispatcher->dispatchTyped($event);
 				} elseif ($calendarType === self::CALENDAR_TYPE_SUBSCRIPTION) {
 					$subscriptionRow = $this->getSubscriptionById($calendarId);
 
@@ -1687,7 +1690,9 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 				} elseif ($calendarType === self::CALENDAR_TYPE_FEDERATED) {
 					// TODO: implement custom event for federated calendars
 				}
-				$etag = $event->getEtag();
+				if (isset($event)) {
+					$etag = $event->getEtag();
+				}
 			}
 
 			return $etag === null ? null : '"' . $etag . '"';
