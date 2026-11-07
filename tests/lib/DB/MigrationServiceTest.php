@@ -107,13 +107,18 @@ class MigrationServiceTest extends \Test\TestCase {
 			'20170130180000' => MigrationWithRequiredArgument::class,
 		]);
 
+		$useLazyObjects = \OC\AppFramework\Utility\SimpleContainer::$useLazyObjects;
+		\OC\AppFramework\Utility\SimpleContainer::$useLazyObjects = false;
 		try {
 			$migrationService->createInstance('20170130180000');
-			self::fail('Expected migration construction to fail');
 		} catch (\RuntimeException $e) {
 			self::assertSame("Cannot default-construct migration '" . MigrationWithRequiredArgument::class . "'", $e->getMessage());
 			self::assertInstanceOf(\ArgumentCountError::class, $e->getPrevious());
+			return;
+		} finally {
+			\OC\AppFramework\Utility\SimpleContainer::$useLazyObjects = $useLazyObjects;
 		}
+		self::fail('Expected migration construction to fail');
 	}
 
 	public function testExecuteStepWithSchemaChange(): void {

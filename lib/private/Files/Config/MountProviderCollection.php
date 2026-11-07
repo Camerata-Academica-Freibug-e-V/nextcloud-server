@@ -163,10 +163,8 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 		foreach ($this->providers as $priority => $providers) {
 			$priorityMounts = [];
 			foreach ($providers as $provider) {
-				$mounts = $provider->getMountsForUser($user, $this->loader);
-				if (is_array($mounts)) {
-					$priorityMounts = array_merge($priorityMounts, $mounts);
-				}
+				$providerMounts = $this->getMountsFromProvider($provider, $user, $this->loader);
+				$priorityMounts = array_merge($priorityMounts, $providerMounts);
 			}
 			$priorityMounts = $this->filterMounts($user, $priorityMounts);
 			$this->eventLogger->start('fs:setup:add-mounts', 'Add mounts to the filesystem');
