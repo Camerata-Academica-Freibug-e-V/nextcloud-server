@@ -36,7 +36,7 @@ class StorageGlobal {
 	) {
 	}
 
-	private static function selectStorageInfo(IQueryBuilder $builder): IQueryBuilder {
+	private function selectStorageInfo(IQueryBuilder $builder): IQueryBuilder {
 		return $builder->select(['storages.id', 'storages.numeric_id', 'storages.available', 'storages.last_checked', 'fc.fileid'])
 			->from('storages', 'storages')
 			->leftJoin(
@@ -55,7 +55,7 @@ class StorageGlobal {
 		$storageIds = array_values(array_map([Storage::class, 'adjustStorageId'], $storageIds));
 
 		$builder = $this->connection->getQueryBuilder();
-		$query = self::selectStorageInfo($builder);
+		$query = $this->selectStorageInfo($builder);
 		$query->where($builder->expr()->in('id', $builder->createParameter('ids'), IQueryBuilder::PARAM_STR_ARRAY));
 		foreach (array_chunk($storageIds, IQueryBuilder::MAX_IN_PARAMETERS) as $chunk) {
 			$query->setParameter('ids', $chunk, IQueryBuilder::PARAM_STR_ARRAY);
@@ -72,6 +72,7 @@ class StorageGlobal {
 				$this->cache[$normalizedRow['id']] = $normalizedRow;
 				$this->idByNumericIdCache[$normalizedRow['numeric_id']] = $normalizedRow['id'];
 			}
+
 			$result->closeCursor();
 		}
 	}
@@ -81,7 +82,7 @@ class StorageGlobal {
 	 */
 	public function loadForNumericIds(array $numericIds): void {
 		$builder = $this->connection->getQueryBuilder();
-		$query = self::selectStorageInfo($builder);
+		$query = $this->selectStorageInfo($builder);
 		$query->where($builder->expr()->in('numeric_id', $builder->createParameter('ids'), IQueryBuilder::PARAM_STR_ARRAY));
 		foreach (array_chunk($numericIds, IQueryBuilder::MAX_IN_PARAMETERS) as $chunk) {
 			$query->setParameter('ids', $chunk, IQueryBuilder::PARAM_STR_ARRAY);
@@ -98,6 +99,7 @@ class StorageGlobal {
 				$this->cache[$normalizedRow['id']] = $normalizedRow;
 				$this->idByNumericIdCache[$normalizedRow['numeric_id']] = $normalizedRow['id'];
 			}
+
 			$result->closeCursor();
 		}
 	}
@@ -136,6 +138,7 @@ class StorageGlobal {
 		if (!isset($this->idByNumericIdCache[$numericId])) {
 			$this->loadForNumericIds([$numericId]);
 		}
+
 		return $this->idByNumericIdCache[$numericId] ?? null;
 	}
 

@@ -16,8 +16,10 @@ use OCP\IUser;
  */
 interface IMountProviderCollection {
 
-	const DEFAULT_PRIORITY = 0;
-	const SHARES_PRIORITY = 1000;
+	/** @since 8.0.0 */
+	public const DEFAULT_PRIORITY = 0;
+	/** @since 23.0.0 */
+	public const SHARES_PRIORITY = 1000;
 
 	/**
 	 * Get all configured mount points for the user

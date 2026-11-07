@@ -29,9 +29,9 @@ declare(strict_types=1);
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  */
+
 namespace OCA\WorkflowEngine\Check;
 
-use OC\Files\Storage\Local;
 use OCA\WorkflowEngine\Entity\File;
 use OCP\Files\Mount\IMountManager;
 use OCP\IL10N;
@@ -59,6 +59,7 @@ class FilePath extends AbstractStringCheck implements IFileCheck {
 	/**
 	 * @return string
 	 */
+	#[\Override]
 	protected function getActualValue(): string {
 		$mountPoints = $this->mountManager->findByStorageId($this->storage->getId());
 		if (empty($mountPoints)) {
@@ -76,6 +77,7 @@ class FilePath extends AbstractStringCheck implements IFileCheck {
 	 * @param string $actualValue
 	 * @return bool
 	 */
+	#[\Override]
 	protected function executeStringCheck($operator, $checkValue, $actualValue): bool {
 		if ($operator === 'is' || $operator === '!is') {
 			$checkValue = mb_strtolower($checkValue);
@@ -84,10 +86,12 @@ class FilePath extends AbstractStringCheck implements IFileCheck {
 		return parent::executeStringCheck($operator, $checkValue, $actualValue);
 	}
 
+	#[\Override]
 	public function supportedEntities(): array {
 		return [ File::class ];
 	}
 
+	#[\Override]
 	public function isAvailableForScope(int $scope): bool {
 		return true;
 	}
