@@ -66,7 +66,7 @@ class DateTimeFormatter implements IDateTimeFormatter {
 			$dateTime = new \DateTime;
 			if ($timestamp instanceof \DateTimeInterface) {
 				$dateTime->setTimestamp($timestamp->getTimestamp())
-						 ->setTimezone($timestamp->getTimezone());
+					->setTimezone($timestamp->getTimezone());
 			} else {
 				$dateTime->setTimestamp((int)$timestamp);
 			}

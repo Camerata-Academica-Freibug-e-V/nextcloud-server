@@ -125,7 +125,7 @@ class Cache implements ICache {
 	 */
 	protected function getStorageFileId() {
 		$storageInfo = $this->getStorageCache()->getStorageInfo();
-		return $storageInfo['fileid']??-1;
+		return $storageInfo['fileid'] ?? -1;
 	}
 
 	/**
