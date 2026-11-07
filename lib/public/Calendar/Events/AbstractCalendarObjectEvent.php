@@ -69,19 +69,19 @@ abstract class AbstractCalendarObjectEvent extends Event implements IWebhookComp
 
 	/**
 	 * @return null|string
-     * @since 32.0.0
-     */
-    public function getEtag(): ?string {
+	 * @since 32.0.0
+	 */
+	public function getEtag(): ?string {
 		return $this->etag;
-    }
+	}
 
-    /**
-     * @return void
-     * @since 32.0.0
-     */
-    public function clearEtag(): void {
+	/**
+	 * @return void
+	 * @since 32.0.0
+	 */
+	public function clearEtag(): void {
 		$this->etag = null;
-    }
+	}
 
 	/**
 	 * @return array

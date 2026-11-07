@@ -127,14 +127,14 @@ class Manager extends PublicEmitter implements IUserManager {
 				$name = $backendClassName;
 			}
 			$backendNames[$backendClassName] = $name;
-			$backendPriorities[$name] = $backendPriorities[$name] ??
-				(($backend instanceof Database) ? PHP_INT_MIN : 0);
+			$backendPriorities[$name] = $backendPriorities[$name]
+				?? (($backend instanceof Database) ? PHP_INT_MIN : 0);
 		}
 		usort(
 			$this->backends,
-			function($left, $right) use ($backendPriorities, $backendNames) {
-				$createUserResult =
-					- (int)$left->implementsActions(Backend::CREATE_USER)
+			function ($left, $right) use ($backendPriorities, $backendNames) {
+				$createUserResult
+					= - (int)$left->implementsActions(Backend::CREATE_USER)
 					+ (int)$right->implementsActions(Backend::CREATE_USER);
 				if ($createUserResult) {
 					return $createUserResult;
@@ -148,7 +148,7 @@ class Manager extends PublicEmitter implements IUserManager {
 				$rightPriority = $backendPriorities[$rightName];
 
 				$priorityResult = (int)($leftPriority < $rightPriority) - (int)($leftPriority > $rightPriority);
-				return $priorityResult ?: strcmp($leftName,  $rightName);
+				return $priorityResult ?: strcmp($leftName, $rightName);
 			}
 		);
 	}
@@ -242,7 +242,7 @@ class Manager extends PublicEmitter implements IUserManager {
 			$uid = $backend->getRealUID($uid);
 		}
 
-		$user = $this->cachedUsers[$uid]??null;
+		$user = $this->cachedUsers[$uid] ?? null;
 		if (!empty($user) && $user->getBackend() === $backend) {
 			return $user;
 		}
