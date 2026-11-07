@@ -47,6 +47,7 @@ namespace OCA\Provisioning_API;
  *     fediverse: string,
  *     fediverseScope?: Provisioning_APIUserDetailsScope,
  *     groups: list<string>,
+ *     namedGroups: array<string, string>,
  *     headline: string,
  *     headlineScope?: Provisioning_APIUserDetailsScope,
  *     id: string,
@@ -86,6 +87,7 @@ namespace OCA\Provisioning_API;
  *     disabled: bool|int,
  *     canAdd: bool,
  *     canRemove: bool,
+ *     backends?: list<string>,
  * }
  */
 class ResponseDefinitions {

@@ -71,6 +71,8 @@ use Psr\Log\LoggerInterface;
  * @property string $ldapExpertUsernameAttr
  * @property string $ldapExpertUUIDUserAttr
  * @property string $ldapExpertUUIDGroupAttr
+ * @property string $ldapExpertUsernameForce
+ * @property string $ldapExpertGroupnameForce
  * @property string $markRemnantsAsDisabled
  * @property string $lastJpegPhotoLookup
  * @property string $ldapNestedGroups

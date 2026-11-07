@@ -94,6 +94,7 @@ interface IL10N {
 	 * The plain translation array UNTRANSLATED => TRANSLATED
 	 *
 	 * @return array translations
+	 * @since 22.0.0
 	 */
 	public function getTranslations(): array;
 }

@@ -87,6 +87,7 @@ class LazyStorageMountInfo extends CachedMountInfo {
 	 * @return bool
 	 * @since 24.0.0
 	 */
+	#[\Override]
 	public function getEnableSharing(): bool {
 		return (bool)$this->mount->getOption('enable_sharing', true);
 	}
@@ -97,6 +98,7 @@ class LazyStorageMountInfo extends CachedMountInfo {
 	 * @return bool
 	 * @since 24.0.0
 	 */
+	#[\Override]
 	public function getAuthenticated(): bool {
 		return (bool)$this->mount->getOption('authenticated', false);
 	}

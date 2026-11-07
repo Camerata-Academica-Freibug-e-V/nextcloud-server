@@ -218,6 +218,30 @@ class ManagerTest extends TestCase {
 		$this->assertEquals('group1', $group->getGID());
 	}
 
+	public function testCreateGroupFromBackend(): void {
+		$backendGroupCreated = false;
+		$backend = $this->getTestBackend(GroupInterface::CREATE_GROUP);
+		$backend->method('groupExists')
+			->willReturnCallback(static function () use (&$backendGroupCreated): bool {
+				return $backendGroupCreated;
+			});
+		$backend->expects($this->once())
+			->method('createGroup')
+			->with('group1')
+			->willReturnCallback(static function () use (&$backendGroupCreated): bool {
+				$backendGroupCreated = true;
+				return true;
+			});
+
+		$manager = new \OC\Group\Manager($this->userManager, $this->dispatcher, $this->logger, $this->cache, $this->remoteIpAddress, $this->userSession, $this->config);
+		$manager->addBackend($backend);
+
+		$group = $manager->createGroupFromBackend('group1', $backend);
+
+		$this->assertNotNull($group);
+		$this->assertSame('group1', $group->getGID());
+	}
+
 	public function testCreateFailure(): void {
 		/** @var \PHPUnit\Framework\MockObject\MockObject|\OC\Group\Backend $backend */
 		$backendGroupCreated = false;
