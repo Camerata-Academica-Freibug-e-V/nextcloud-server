@@ -289,7 +289,7 @@ class User_LDAPTest extends TestCase {
 			->method('getConnectionResource')
 			->willReturn(ldap_connect('ldap://example.com'));
 
-		$this->deletedUsersIndex->expects($this->once())
+		$this->deletedUsersIndex->expects($this->exactly(2))
 			->method('isUserMarked')
 			->with($uid)
 			->willReturn(true);
@@ -645,6 +645,9 @@ class User_LDAPTest extends TestCase {
 				if ($name === 'homeFolderNamingRule') {
 					return 'attr:testAttribute';
 				}
+				if ($name === 'ldapUserFilter') {
+					return '(objectClass=person)';
+				}
 				return null;
 			});
 
@@ -702,6 +705,9 @@ class User_LDAPTest extends TestCase {
 				if ($name === 'homeFolderNamingRule') {
 					return 'attr:testAttribute';
 				}
+				if ($name === 'ldapUserFilter') {
+					return '(objectClass=person)';
+				}
 				return null;
 			});
 
@@ -756,18 +762,24 @@ class User_LDAPTest extends TestCase {
 				if ($name === 'homeFolderNamingRule') {
 					return 'attr:testAttribute';
 				}
+				if ($name === 'ldapUserFilter') {
+					return '(objectClass=person)';
+				}
 				return null;
 			});
 		$this->access->expects($this->any())
 			->method('readAttribute')
 			->willReturnCallback(function ($dn, $attr) {
 				switch ($dn) {
+					case 'dnOfNewYorker,dc=test':
+						return [];
 					default:
 						return false;
 				}
 			});
 
 		$user = $this->createMock(User::class);
+		$user->method('getDN')->willReturn('dnOfNewYorker,dc=test');
 		$user->expects($this->any())
 			->method('getUsername')
 			->willReturn('newyorker');
@@ -794,6 +806,7 @@ class User_LDAPTest extends TestCase {
 
 		$backend = new User_LDAP($this->access, $this->notificationManager, $this->pluginManager, $this->logger, $this->deletedUsersIndex);
 		$this->prepareMockForUserExists();
+		$this->deletedUsersIndex->method('isUserMarked')->with($uid)->willReturn(true);
 
 		$this->connection->expects($this->any())
 			->method('__get')
@@ -860,6 +873,8 @@ class User_LDAPTest extends TestCase {
 					return 'displayname';
 				} elseif ($name === 'ldapUserDisplayName2') {
 					return 'displayname2';
+				} elseif ($name === 'ldapUserFilter') {
+					return '(objectClass=person)';
 				}
 				return null;
 			});

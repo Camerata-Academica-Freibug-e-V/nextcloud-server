@@ -16,6 +16,7 @@ use Doctrine\DBAL\Schema\SchemaException;
 use Doctrine\DBAL\Schema\Sequence;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\Type;
+use OC\AppFramework\Utility\SimpleContainer;
 use OC\DB\Connection;
 use OC\DB\MigrationService;
 use OC\DB\SchemaWrapper;
@@ -107,13 +108,18 @@ class MigrationServiceTest extends \Test\TestCase {
 			'20170130180000' => MigrationWithRequiredArgument::class,
 		]);
 
+		$useLazyObjects = SimpleContainer::$useLazyObjects;
+		SimpleContainer::$useLazyObjects = false;
 		try {
 			$migrationService->createInstance('20170130180000');
-			self::fail('Expected migration construction to fail');
 		} catch (\RuntimeException $e) {
 			self::assertSame("Cannot default-construct migration '" . MigrationWithRequiredArgument::class . "'", $e->getMessage());
 			self::assertInstanceOf(\ArgumentCountError::class, $e->getPrevious());
+			return;
+		} finally {
+			SimpleContainer::$useLazyObjects = $useLazyObjects;
 		}
+		self::fail('Expected migration construction to fail');
 	}
 
 	public function testExecuteStepWithSchemaChange(): void {
