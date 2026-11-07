@@ -378,7 +378,8 @@ class EventReader {
 	 *
 	 * returns the COUNT value if RRULE is used
 	 * returns the collection count if RDATE is used
-	 * returns combined count of RRULE COUNT and RDATE if both are used
+	 * returns RRULE COUNT plus distinct additional RDATE occurrences if both are used
+	 * returns null if RRULE does not specify COUNT
 	 * returns null if RRULE and RDATE are absent
 	 *
 	 * @since 30.0.0
@@ -387,14 +388,32 @@ class EventReader {
 	 */
 	public function recurringConcludesAfter(): ?int {
 
-		// construct count place holder
-		$count = 0;
-		// retrieve and add RRULE iterations count
-		$count += (int)$this->rruleIterator?->concludesAfter();
-		// retrieve and add RDATE iterations count
-		$count += (int)$this->rdateIterator?->concludesAfter();
-		// return count
-		return !empty($count) ? $count : null;
+		$count = $this->rruleIterator?->concludesAfter();
+		if ($this->rruleIterator !== null && $count === null) {
+			return null;
+		}
+		if ($this->rdateIterator === null) {
+			return $count;
+		}
+
+		$dates = [];
+		foreach (clone $this->rdateIterator as $date) {
+			$dates[$date->getTimestamp()] = $date;
+		}
+		ksort($dates);
+		if ($this->rruleIterator === null) {
+			return $dates !== [] ? count($dates) : null;
+		}
+
+		$rule = clone $this->rruleIterator;
+		$rule->rewind();
+		foreach ($dates as $timestamp => $date) {
+			$rule->fastForward($date);
+			if (!$rule->valid() || $rule->current()->getTimestamp() !== $timestamp) {
+				$count++;
+			}
+		}
+		return $count;
 	}
 
 	/**
