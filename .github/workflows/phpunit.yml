@@ -80,11 +80,6 @@ jobs:
     if: needs.changes.outputs.src != 'false'
     uses: ./.github/workflows/phpunit-object-store-primary.yml
 
-  oci:
-    needs: changes
-    if: needs.changes.outputs.src != 'false'
-    uses: ./.github/workflows/phpunit-oci.yml
-
   pgsql:
     needs: changes
     if: needs.changes.outputs.src != 'false'
@@ -109,7 +104,7 @@ jobs:
     permissions:
       contents: none
     runs-on: ubuntu-latest
-    needs: [changes, mariadb, memcached, mysql, mysql-sharding, object-store-primary, oci, pgsql, sqlite, nodb, kvstore]
+    needs: [changes, mariadb, memcached, mysql, mysql-sharding, object-store-primary, pgsql, sqlite, nodb, kvstore]
 
     if: always()
 
