@@ -462,6 +462,7 @@ class Manager extends PublicEmitter implements IUserManager {
 	#[\Override]
 	public function createUser($uid, $password): IUser|false {
 		// DI injection is not used here as IRegistry needs the user manager itself for user count and thus it would create a cyclic dependency
+		$l = Util::getL10N('lib');
 		/** @var IAssertion $assertion */
 		$assertion = Server::get(IAssertion::class);
 		$assertion->createUserIsLegit();
@@ -470,19 +471,23 @@ class Manager extends PublicEmitter implements IUserManager {
 			throw new \InvalidArgumentException($l->t('Username is invalid because files already exist for this user'));
 		}
 
-		// Check if user already exists
+		$backendForCreation = null;
+		foreach ($this->backends as $backend) {
+			if ($backend->implementsActions(Backend::CREATE_USER)) {
+				$backendForCreation = $backend;
+				break;
+			}
+		}
+
+		if ($backendForCreation === null) {
+			return false;
+		}
+
 		if ($this->userExists($uid)) {
 			throw new \InvalidArgumentException($l->t('The username is already being used'));
 		}
 
-		// registerBackend() has sorted the backends in a predictable manner:
-		foreach ($this->backends as $backend) {
-			if ($backend->implementsActions(Backend::CREATE_USER)) {
-				return $this->createUserFromBackend($uid, $password, $backend);
-			}
-		}
-
-		return false;
+		return $this->createUserFromBackendInternal($uid, $password, $backendForCreation, false);
 	}
 
 	/**
@@ -492,12 +497,16 @@ class Manager extends PublicEmitter implements IUserManager {
 	 */
 	#[\Override]
 	public function createUserFromBackend($uid, $password, UserInterface $backend): IUser|false {
+		return $this->createUserFromBackendInternal($uid, $password, $backend, true);
+	}
+
+	private function createUserFromBackendInternal(string $uid, string $password, UserInterface $backend, bool $checkUserExists): IUser|false {
 		$l = Util::getL10N('lib');
 
 		$this->validateUserId($uid, false);
 
 		// Check if user already exists in this backend
-		if ($backend->userExists($uid)) {
+		if ($checkUserExists && $backend->userExists($uid)) {
 			throw new \InvalidArgumentException($l->t('The username is already being used'));
 		}
 
