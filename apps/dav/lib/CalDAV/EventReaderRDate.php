@@ -10,6 +10,8 @@ declare(strict_types=1);
 namespace OCA\DAV\CalDAV;
 
 use DateTime;
+use DateTimeInterface;
+use Sabre\VObject\DateTimeParser;
 
 class EventReaderRDate extends \Sabre\VObject\Recur\RDateIterator {
 
@@ -22,14 +24,16 @@ class EventReaderRDate extends \Sabre\VObject\Recur\RDateIterator {
 	}
 
 	public function concludesOn(): ?DateTime {
-		if (count($this->dates) > 0) {
-			return new DateTime(
-				$this->dates[array_key_last($this->dates)],
-				$this->startDate->getTimezone()
-			);
+		$lastDate = null;
+		foreach ($this->dates as $date) {
+			$date = $date instanceof DateTimeInterface
+				? DateTime::createFromInterface($date)
+				: DateTime::createFromInterface(DateTimeParser::parse($date, $this->startDate->getTimezone()));
+			if ($lastDate === null || $date > $lastDate) {
+				$lastDate = $date;
+			}
 		}
-
-		return null;
+		return $lastDate;
 	}
 
 }
