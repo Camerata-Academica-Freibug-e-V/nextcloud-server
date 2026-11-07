@@ -3578,23 +3578,6 @@
       <code><![CDATA[\OC\Files\Node\Node[]]]></code>
     </MoreSpecificReturnType>
   </file>
-  <file src="lib/private/Files/Node/HookConnector.php">
-    <UndefinedInterfaceMethod>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-      <code><![CDATA[emit]]></code>
-    </UndefinedInterfaceMethod>
-  </file>
   <file src="lib/private/Files/Node/LazyFolder.php">
     <InvalidReturnStatement>
       <code><![CDATA[$this->__call(__FUNCTION__, func_get_args())]]></code>
