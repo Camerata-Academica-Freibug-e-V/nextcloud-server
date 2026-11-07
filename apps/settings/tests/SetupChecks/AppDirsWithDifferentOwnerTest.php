@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace OCA\Settings\Tests\SetupChecks;
 
 use OCA\Settings\SetupChecks\AppDirsWithDifferentOwner;
+use OCP\IConfig;
 use OCP\IL10N;
 use PHPUnit\Framework\MockObject\MockObject;
 use Test\TestCase;
@@ -37,6 +38,7 @@ class AppDirsWithDifferentOwnerTest extends TestCase {
 			});
 		$this->check = new AppDirsWithDifferentOwner(
 			$this->l10n,
+			$this->createMock(IConfig::class),
 		);
 	}
 

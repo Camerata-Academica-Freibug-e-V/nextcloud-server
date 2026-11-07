@@ -70,7 +70,7 @@ class MessageTest extends TestCase {
 
 		$this->symfonyEmail = $this->createMock(Email::class);
 
-		$this->message = new Message($this->symfonyEmail, false);
+		$this->message = new Message($this->symfonyEmail, false, '', '');
 	}
 
 	/**
@@ -218,7 +218,7 @@ class MessageTest extends TestCase {
 		$template = $this->getMockBuilder(IEMailTemplate::class)
 			->disableOriginalConstructor()->getMock();
 
-		$message = new Message($symfonyEmail, true);
+		$message = new Message($symfonyEmail, true, '', '');
 
 		$template
 			->expects($this->never())
@@ -241,7 +241,7 @@ class MessageTest extends TestCase {
 		$template = $this->getMockBuilder(IEMailTemplate::class)
 			->disableOriginalConstructor()->getMock();
 
-		$message = new Message($symfonyEmail, false);
+		$message = new Message($symfonyEmail, false, '', '');
 
 		$template
 			->expects($this->once())
@@ -268,7 +268,7 @@ class MessageTest extends TestCase {
 		$template->method('getInlineImages')
 			->willReturn([['name' => 'logo', 'content' => 'PNGDATA', 'mimeType' => 'image/png']]);
 
-		$message = new Message($symfonyEmail, false);
+		$message = new Message($symfonyEmail, false, '', '');
 		$message->useTemplate($template);
 
 		$this->assertSame('<img src="cid:logo">', $symfonyEmail->getHtmlBody());
@@ -286,7 +286,7 @@ class MessageTest extends TestCase {
 		$symfonyEmail->method('getHeaders')
 			->willReturn($headers);
 
-		$message = new Message($symfonyEmail, false);
+		$message = new Message($symfonyEmail, false, '', '');
 		$message->setAutoSubmitted(AutoSubmitted::VALUE_AUTO_GENERATED);
 		$this->assertNotSame('no', $message->getAutoSubmitted());
 	}
@@ -299,7 +299,7 @@ class MessageTest extends TestCase {
 		$symfonyEmail->method('getHeaders')
 			->willReturn($headers);
 
-		$message = new Message($symfonyEmail, false);
+		$message = new Message($symfonyEmail, false, '', '');
 		$message->setAutoSubmitted(AutoSubmitted::VALUE_AUTO_GENERATED);
 		$this->assertSame('auto-generated', $message->getAutoSubmitted());
 	}
@@ -312,7 +312,7 @@ class MessageTest extends TestCase {
 		$symfonyEmail->method('getHeaders')
 			->willReturn($headers);
 
-		$message = new Message($symfonyEmail, false);
+		$message = new Message($symfonyEmail, false, '', '');
 		$this->assertSame('no', $message->getAutoSubmitted());
 	}
 }

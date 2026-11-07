@@ -211,7 +211,8 @@ class GroupsControllerTest extends \Test\TestCase {
 				'usercount' => 123,
 				'disabled' => 11,
 				'canAdd' => true,
-				'canRemove' => true
+				'canRemove' => true,
+				'backends' => [],
 			],
 			[
 				'id' => 'group2',
@@ -219,7 +220,8 @@ class GroupsControllerTest extends \Test\TestCase {
 				'usercount' => 123,
 				'disabled' => 11,
 				'canAdd' => true,
-				'canRemove' => true
+				'canRemove' => true,
+				'backends' => [],
 			]
 		]], $result->getData());
 	}
@@ -487,8 +489,8 @@ class GroupsControllerTest extends \Test\TestCase {
 			->with($gid)
 			->willReturn($group);
 		$this->groupManager->expects($this->any())
-			->method('getUserGroupIds')
-			->willReturn(['ncg1']);
+			->method('getUserGroups')
+			->willReturn([$group]);
 
 		/** @var MockObject */
 		$this->subAdminManager->expects($this->any())
@@ -624,8 +626,8 @@ class GroupsControllerTest extends \Test\TestCase {
 			->with($gid)
 			->willReturn($group);
 		$this->groupManager->expects($this->any())
-			->method('getUserGroupIds')
-			->willReturn(['Department A/B C/D']);
+			->method('getUserGroups')
+			->willReturn([$group]);
 
 		/** @var MockObject */
 		$this->subAdminManager->expects($this->any())
