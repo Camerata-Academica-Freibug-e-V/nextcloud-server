@@ -73,17 +73,17 @@ class CachedCalendarObjectCreatedEvent extends Event {
 
 	/**
 	 * @return null|string
-     * @since 31.0.0
-     */
-    public function getEtag(): ?string {
+	 * @since 31.0.0
+	 */
+	public function getEtag(): ?string {
 		return $this->etag;
-    }
+	}
 
-    /**
-     * @return void
-     * @since 31.0.0
-     */
-    public function clearEtag(): void {
+	/**
+	 * @return void
+	 * @since 31.0.0
+	 */
+	public function clearEtag(): void {
 		$this->etag = null;
-    }
+	}
 }

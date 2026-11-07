@@ -8,8 +8,8 @@
 
 namespace OC\Files\Node;
 
-use OCP\Files\Node;
 use OCP\Files\FileInfo;
+use OCP\Files\Node;
 use OCP\Files\NotFoundException;
 use Override;
 

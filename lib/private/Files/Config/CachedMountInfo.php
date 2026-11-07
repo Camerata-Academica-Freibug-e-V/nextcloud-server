@@ -25,7 +25,7 @@ class CachedMountInfo implements ICachedMountInfo {
 		protected ?int $mountId = null,
 		protected string $rootInternalPath = '',
 		protected bool $enableSharing = true,
-		protected bool $authenticated = false
+		protected bool $authenticated = false,
 	) {
 		if (strlen($this->mountProvider) > 128) {
 			throw new \Exception("Mount provider $this->mountProvider name exceeds the limit of 128 characters");
