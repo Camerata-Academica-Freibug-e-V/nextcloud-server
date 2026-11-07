@@ -356,3 +356,9 @@ path = "core/img/libreoffice.svg"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2011-2026 The Document Foundation"
 SPDX-License-Identifier = "LicenseRef-TheDocumentFoundationTrademarks"
+
+[[annotations]]
+path = ".ac-php-conf.json"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2021 Claus-Justus Heine"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
