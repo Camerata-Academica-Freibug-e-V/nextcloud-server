@@ -25,20 +25,19 @@ use OCP\IDBConnection;
  * @psalm-api
  */
 class StorageGlobal {
-	/** @var array<string, array{id: string, numeric_id: int, available: bool, last_checked: int}> */
+	/** @var array<string, array{id: string, numeric_id: int, available: bool, last_checked: int, fileid: ?int}> */
 	private array $cache = [];
 
-	/** @var string[] */
-	private $idByNumericIdCache = [];
+	/** @var array<int, string> */
+	private array $idByNumericIdCache = [];
 
 	public function __construct(
 		private readonly IDBConnection $connection,
 	) {
 	}
 
-	static private function selectStorageInfo($builder)
-	{
-		return $builder->select(['id', 'numeric_id', 'available', 'last_checked', 'fileid'])
+	private static function selectStorageInfo(IQueryBuilder $builder): IQueryBuilder {
+		return $builder->select(['storages.id', 'storages.numeric_id', 'storages.available', 'storages.last_checked', 'fc.fileid'])
 			->from('storages', 'storages')
 			->leftJoin(
 				'storages', 'filecache', 'fc',
@@ -51,7 +50,7 @@ class StorageGlobal {
 	/**
 	 * @param string[] $storageIds
 	 */
-	public function loadForStorageIds(array $storageIds) {
+	public function loadForStorageIds(array $storageIds): void {
 
 		$storageIds = array_values(array_map([Storage::class, 'adjustStorageId'], $storageIds));
 
@@ -68,7 +67,7 @@ class StorageGlobal {
 					'numeric_id' => (int)$row['numeric_id'],
 					'available' => (bool)$row['available'],
 					'last_checked' => (int)$row['last_checked'],
-					'fileid' => (int)$row['fileid'],
+					'fileid' => $row['fileid'] === null ? null : (int)$row['fileid'],
 				];
 				$this->cache[$normalizedRow['id']] = $normalizedRow;
 				$this->idByNumericIdCache[$normalizedRow['numeric_id']] = $normalizedRow['id'];
@@ -78,9 +77,9 @@ class StorageGlobal {
 	}
 
 	/**
-	 * @param string[] $numericIds
+	 * @param int[] $numericIds
 	 */
-	public function loadForNumericIds(array $numericIds) {
+	public function loadForNumericIds(array $numericIds): void {
 		$builder = $this->connection->getQueryBuilder();
 		$query = self::selectStorageInfo($builder);
 		$query->where($builder->expr()->in('numeric_id', $builder->createParameter('ids'), IQueryBuilder::PARAM_STR_ARRAY));
@@ -94,7 +93,7 @@ class StorageGlobal {
 					'numeric_id' => (int)$row['numeric_id'],
 					'available' => (bool)$row['available'],
 					'last_checked' => (int)$row['last_checked'],
-					'fileid' => (int)$row['fileid'],
+					'fileid' => $row['fileid'] === null ? null : (int)$row['fileid'],
 				];
 				$this->cache[$normalizedRow['id']] = $normalizedRow;
 				$this->idByNumericIdCache[$normalizedRow['numeric_id']] = $normalizedRow['id'];
@@ -104,7 +103,7 @@ class StorageGlobal {
 	}
 
 	/**
-	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int}|null
+	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int, fileid: ?int}|null
 	 */
 	public function getStorageInfo(string $storageId): ?array {
 		$storageId = Storage::adjustStorageId($storageId);
@@ -116,14 +115,15 @@ class StorageGlobal {
 	}
 
 	/**
-	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int}|null
+	 * @return array{id: string, numeric_id: int, available: bool, last_checked: int, fileid: ?int}|null
 	 */
 	public function getStorageInfoByNumericId(int $numericId): ?array {
-		if (!isset($this->numericIdCache[$numericId])) {
+		if (!isset($this->idByNumericIdCache[$numericId])) {
 			$this->loadForNumericIds([$numericId]);
 		}
 
-		return $this->numericIdCache[$numericId] ?? null;
+		$storageId = $this->idByNumericIdCache[$numericId] ?? null;
+		return $storageId === null ? null : $this->cache[$storageId];
 	}
 
 	/**
@@ -132,8 +132,7 @@ class StorageGlobal {
 	 * @param int $numericId
 	 * @return string|null either the storage id string or null if the numeric id is not known
 	 */
-	public function getStorageId($numericId)
-	{
+	public function getStorageId($numericId) {
 		if (!isset($this->idByNumericIdCache[$numericId])) {
 			$this->loadForNumericIds([$numericId]);
 		}
