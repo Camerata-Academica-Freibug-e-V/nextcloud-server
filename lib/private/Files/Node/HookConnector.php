@@ -38,6 +38,9 @@ class HookConnector {
 	/** @var FileInfo[] */
 	private array $deleteMetaCache = [];
 
+	/**
+	 * @param Root $root
+	 */
 	public function __construct(
 		private IRootFolder $root,
 		private View $view,
