@@ -472,12 +472,12 @@ class MigrationService {
 		$class = $this->getClass($version);
 		try {
 			$s = Server::get($class);
-		} catch (NotFoundExceptionInterface) {
+		} catch (NotFoundExceptionInterface $e) {
 			if (class_exists($class)) {
 				try {
 					$s = new $class();
 				} catch (\Throwable $t) {
-					throw new \RuntimeException("Cannot default-construct migration '$class'", $e->getCode(), $e);
+					throw new \RuntimeException("Cannot default-construct migration '$class'", $t->getCode(), $t);
 				}
 			} else {
 				throw new \InvalidArgumentException("Migration step '$class' is unknown", $e->getCode(), $e);

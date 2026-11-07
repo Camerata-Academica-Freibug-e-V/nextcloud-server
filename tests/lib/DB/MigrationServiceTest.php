@@ -22,6 +22,7 @@ use OC\DB\SchemaWrapper;
 use OCP\App\AppPathNotFoundException;
 use OCP\IDBConnection;
 use OCP\Migration\IMigrationStep;
+use OCP\Migration\SimpleMigrationStep;
 use OCP\Server;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -95,6 +96,24 @@ class MigrationServiceTest extends \Test\TestCase {
 			['20170130180000' => 'X', '20170130180001' => 'Y', '20170130180002' => 'Z', '20170130180003' => 'A']
 		);
 		$migrationService->executeStep('20170130180000');
+	}
+
+	public function testCreateInstancePreservesConstructorError(): void {
+		$migrationService = $this->getMockBuilder(MigrationService::class)
+			->onlyMethods(['findMigrations'])
+			->setConstructorArgs(['testing', $this->db])
+			->getMock();
+		$migrationService->method('findMigrations')->willReturn([
+			'20170130180000' => MigrationWithRequiredArgument::class,
+		]);
+
+		try {
+			$migrationService->createInstance('20170130180000');
+			self::fail('Expected migration construction to fail');
+		} catch (\RuntimeException $e) {
+			self::assertSame("Cannot default-construct migration '" . MigrationWithRequiredArgument::class . "'", $e->getMessage());
+			self::assertInstanceOf(\ArgumentCountError::class, $e->getPrevious());
+		}
 	}
 
 	public function testExecuteStepWithSchemaChange(): void {
@@ -1018,5 +1037,10 @@ class MigrationServiceTest extends \Test\TestCase {
 			->willReturn(false);
 
 		$this->migrationService->ensureOracleConstraints($sourceSchema, $schema);
+	}
+}
+
+class MigrationWithRequiredArgument extends SimpleMigrationStep {
+	public function __construct(string $requiredArgument) {
 	}
 }
