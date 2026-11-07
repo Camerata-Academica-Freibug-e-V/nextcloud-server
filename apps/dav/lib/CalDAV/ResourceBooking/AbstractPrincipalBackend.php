@@ -494,13 +494,6 @@ abstract class AbstractPrincipalBackend implements BackendInterface {
 			return true;
 		}
 
-		$query = $this->db->getQueryBuilder();
-		$query->select('group_id')
-			->from('calresources_restricts')
-			->where($query->expr()->in('id', $query->createNamedParameter($json, IQueryBuilder::PARAM_INT_ARRAY)));
-		$stmt = $query->execute();
-		$allowedGroups = $stmt->fetchAll(\PDO::FETCH_COLUMN, 0);
-
-		return !empty(array_intersect($allowedGroups, $userGroups));
+		return !empty(array_intersect($json, $userGroups));
 	}
 }
