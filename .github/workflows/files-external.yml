@@ -180,7 +180,7 @@ jobs:
   files-external-smb-kerberos:
     runs-on: ubuntu-latest
 
-    if: ${{ github.repository_owner != 'nextcloud-gmbh' }}
+    if: ${{ false }}
 
     name: smb-kerberos-sso
 
