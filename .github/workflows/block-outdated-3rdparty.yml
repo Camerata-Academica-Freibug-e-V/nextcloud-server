@@ -50,21 +50,26 @@ jobs:
               core.exportVariable('server_ref', 'master');
               console.log('Setting server_ref to master');
             } else {
-              const regex = /^stable(\d+)$/
+              const regex = /^(?:cjh-)?stable(\d+)$/
               const match = baseRef.match(regex)
               if (match) {
                 core.exportVariable('server_ref', match[0]);
                 console.log('Setting server_ref to ' + match[0]);
               } else {
-                console.log('Not based on master/main/stable*, so skipping outdated 3rdparty check');
+                console.log('Not based on master/main/stable*/cjh-stable*, so skipping outdated 3rdparty check');
               }
             }
 
       - name: Last 3rdparty commit on target branch
         if: ${{ env.server_ref != '' }}
         id: target
+        env:
+          SERVER_REF: ${{ env.server_ref }}
         run: |
-          echo "commit=$(git ls-remote https://github.com/nextcloud/3rdparty refs/heads/${{ env.server_ref }} | awk '{ print $1}')" >> "$GITHUB_OUTPUT"
+          url=$(git config -f .gitmodules --get submodule.3rdparty.url)
+          commit=$(git ls-remote --exit-code "$url" "refs/heads/$SERVER_REF" | awk '{ print $1 }')
+          test -n "$commit"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
 
       - name: Compare if 3rdparty commits are different
         if: ${{ env.server_ref != '' }}
