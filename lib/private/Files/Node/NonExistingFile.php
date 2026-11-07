@@ -12,6 +12,7 @@ use OCP\Files\FileInfo;
 use OCP\Files\NotFoundException;
 
 class NonExistingFile extends File {
+	#[\Override]
 	public function getType() {
 		if ($this->fileInfo) {
 			return parent::getType();

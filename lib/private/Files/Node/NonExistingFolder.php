@@ -14,6 +14,7 @@ use OCP\Files\NotFoundException;
 use Override;
 
 class NonExistingFolder extends Folder {
+	#[\Override]
 	public function getType() {
 		if ($this->fileInfo) {
 			return parent::getType();

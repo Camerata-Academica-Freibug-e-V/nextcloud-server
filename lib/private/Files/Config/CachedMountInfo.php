@@ -110,8 +110,9 @@ class CachedMountInfo implements ICachedMountInfo {
 	 * @return bool
 	 * @since 24.0.0
 	 */
+	#[\Override]
 	public function getEnableSharing(): bool {
-		return (bool)$this->enableSharing;
+		return $this->enableSharing;
 	}
 
 	/**
@@ -120,7 +121,8 @@ class CachedMountInfo implements ICachedMountInfo {
 	 * @return bool
 	 * @since 24.0.0
 	 */
+	#[\Override]
 	public function getAuthenticated(): bool {
-		return (bool)$this->authenticated;
+		return $this->authenticated;
 	}
 }

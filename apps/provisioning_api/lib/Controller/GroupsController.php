@@ -25,6 +25,7 @@ use OCP\AppFramework\OCS\OCSForbiddenException;
 use OCP\AppFramework\OCS\OCSNotFoundException;
 use OCP\AppFramework\OCSController;
 use OCP\Files\IRootFolder;
+use OCP\Group\Backend\INamedBackend;
 use OCP\Group\ISubAdmin;
 use OCP\IConfig;
 use OCP\IGroup;
@@ -118,7 +119,7 @@ class GroupsController extends AUserDataOCSController {
 				'disabled' => $group->countDisabled(),
 				'canAdd' => $group->canAddUser(),
 				'canRemove' => $group->canRemoveUser(),
-				'backends' => $group->getBackendNames(),
+				'backends' => array_values($group->getBackendNames()),
 			];
 		}, $groups);
 
@@ -279,7 +280,7 @@ class GroupsController extends AUserDataOCSController {
 	public function addGroup(
 		string $groupid,
 		string $displayname = '',
-		string $backendName = ''
+		string $backendName = '',
 	): DataResponse {
 		// Validate name
 		if (empty($groupid)) {
@@ -290,10 +291,10 @@ class GroupsController extends AUserDataOCSController {
 		if ($this->groupManager->groupExists($groupid)) {
 			throw new OCSException('group exists', 102);
 		}
+		$groupInterface = null;
 		if (!empty($backendName)) {
-			$groupInterface = null;
 			foreach ($this->groupManager->getBackends() as $oneBackend) {
-				if ($oneBackend->getBackendName() == $backendName) {
+				if ($oneBackend instanceof INamedBackend && $oneBackend->getBackendName() === $backendName) {
 					$groupInterface = $oneBackend;
 				}
 			}

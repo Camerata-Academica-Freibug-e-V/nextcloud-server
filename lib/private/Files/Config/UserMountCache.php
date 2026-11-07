@@ -89,7 +89,7 @@ class UserMountCache implements IUserMountCache {
 			}
 		}
 
-		$cachedMounts = $this->getMountsForUser($user, $forUser != $user->getUID() ? true : null, $authenticated ? null : false);
+		$cachedMounts = $this->getMountsForUser($user, $forUser !== $user->getUID() ? true : null, $authenticated ? null : false);
 		if (is_array($mountProviderClasses)) {
 			$cachedMounts = array_filter($cachedMounts, function (
 				ICachedMountInfo $mountInfo,
@@ -458,8 +458,8 @@ class UserMountCache implements IUserMountCache {
 				$row['mount_id'] === null ? null : (int)$row['mount_id'],
 				$row['mount_provider_class'] ?? '',
 				$row['path'] ?? '',
-				$row['enable_sharing'] || false,
-				$row['authenticated'] || false,
+				(bool)$row['enable_sharing'],
+				(bool)$row['authenticated'],
 				$internalPath,
 			);
 		}
