@@ -37,9 +37,6 @@ class ValidatorTest extends TestCase {
 		]);
 		$this->addToAssertionCount(2);
 
-		$this->expectException(InvalidObjectExeption::class);
-
-		$this->expectExceptionMessage('Object for placeholder string1 is invalid, value 123 for key key is not a string');
 		$v->validate('test {string1} test.', [
 			'string1' => [
 				'type' => 'user',
@@ -49,13 +46,27 @@ class ValidatorTest extends TestCase {
 			],
 		]);
 
-		$this->expectExceptionMessage('Object for placeholder string1 is invalid, key 456 is not a string');
 		$v->validate('test {string1} test.', [
 			'string1' => [
 				'type' => 'user',
 				'id' => 'johndoe',
 				'name' => 'John Doe',
 				456 => 'value',
+			],
+		]);
+		$this->addToAssertionCount(2);
+	}
+
+	public function testRejectsInvalidValue(): void {
+		$this->expectException(InvalidObjectExeption::class);
+		$this->expectExceptionMessage('Object for placeholder user is invalid, value  for key key is not a string');
+		$v = new Validator(new Definitions());
+		$v->validate('{user}', [
+			'user' => [
+				'type' => 'user',
+				'id' => 'johndoe',
+				'name' => 'John Doe',
+				'key' => false,
 			],
 		]);
 	}
