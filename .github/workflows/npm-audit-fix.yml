@@ -65,7 +65,7 @@ jobs:
             echo 'Not based on master/main/stable*, so skipping freeze check'
             exit 0
           fi
-          curl -sf "https://raw.githubusercontent.com/nextcloud/server/$SERVER_REF/version.php" --output version.php
+          curl -sf "https://raw.githubusercontent.com/Camerata-Academica-Freibug-e-V/nextcloud-server/$SERVER_REF/version.php" --output version.php
           if grep 'OC_VersionString' version.php | grep -q -i -E '(\.0\.0 RC[3-9]|\.[1-9][0-9]* RC)'; then
             echo "Merge freeze is active for $SERVER_REF, skipping"
             echo 'active=true' >> $GITHUB_OUTPUT
