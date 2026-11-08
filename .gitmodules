@@ -3,5 +3,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 [submodule "3rdparty"]
 	path = 3rdparty
-	url = https://github.com/rotdrop/nextcloud-3rdparty.git
+	url = https://github.com/Camerata-Academica-Freibug-e-V/nextcloud-3rdparty.git
 	branch = cjh-stable35
