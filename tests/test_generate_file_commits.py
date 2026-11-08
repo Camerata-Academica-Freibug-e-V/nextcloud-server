@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPT = runpy.run_path(str(Path(__file__).resolve().parents[1] / "build/generate-file-commits"))
@@ -94,15 +95,30 @@ class GenerateFileCommitsTest(unittest.TestCase):
         self.assertEqual(self.rows(), [])
 
     def test_reference_with_slashes(self):
-        self.assertEqual(
-            SCRIPT["parse_reference"]("owner/repository/review/branch"),
-            ("owner/repository", "review/branch"),
-        )
+        for branch in ["stable35", "review/branch", "copilot/fix/issue", "bugfix/issue"]:
+            with self.subTest(branch=branch):
+                self.assertEqual(
+                    SCRIPT["parse_reference"](f"owner/repository#{branch}"),
+                    ("owner/repository", branch),
+                )
+
+    def test_no_arguments_shows_full_help(self):
+        output = io.StringIO()
+        with patch("sys.stderr", output):
+            self.assertEqual(SCRIPT["main"]([]), 2)
+        help_text = output.getvalue()
+        self.assertIn("OWNER/REPO#BASE_BRANCH", help_text)
+        self.assertIn("OWNER/REPO#TARGET_BRANCH", help_text)
+        self.assertIn("semicolon separator", help_text)
+        self.assertIn("nextcloud/server#stable35", help_text)
 
     def test_invalid_reference(self):
         import argparse
 
-        for reference in ["owner/repository", "/repository/branch", "owner/repository/"]:
+        for reference in [
+            "owner/repository", "/repository#branch", "owner/repository#",
+            "owner/repository/review/branch", "owner/repository/extra#branch",
+        ]:
             with self.subTest(reference=reference):
                 with self.assertRaises(argparse.ArgumentTypeError):
                     SCRIPT["parse_reference"](reference)
