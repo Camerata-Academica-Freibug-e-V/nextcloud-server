@@ -16,17 +16,19 @@ from urllib.parse import quote
 
 
 def parse_reference(value):
-    parts = value.split("/", 2)
+    repository, separator, branch = value.partition("#")
+    parts = repository.split("/")
     if (
-        len(parts) != 3
+        len(parts) != 2
         or not re.fullmatch(r"[A-Za-z0-9_.-]+", parts[0])
         or not re.fullmatch(r"[A-Za-z0-9_.-]+", parts[1])
-        or not parts[2]
+        or not separator
+        or not branch
     ):
         raise argparse.ArgumentTypeError(
-            "Expected OWNER/REPOSITORY/BRANCH (branch names may contain slashes)"
+            "Expected OWNER/REPO#BRANCH (branch names may contain slashes)"
         )
-    return "/".join(parts[:2]), parts[2]
+    return repository, branch
 
 
 def git(directory, *args):
@@ -95,16 +97,21 @@ def main(argv=None):
             "Renames include old and new paths; merges include changes against every parent."
         ),
         epilog=(
-            "Example: build/generate-file-commits nextcloud/server/stable35 "
-            "Camerata-Academica-Freibug-e-V/nextcloud-server/"
+            "Example: build/generate-file-commits nextcloud/server#stable35 "
+            "Camerata-Academica-Freibug-e-V/nextcloud-server#"
             "review/followups-squashed-stable35 > file-commits.csv. "
             "Requires git and network access. For private repositories configure GitHub "
             "Git authentication first (for example, gh auth setup-git). "
             "Fetches commit/tree history into a temporary bare repository without file blobs."
         ),
     )
-    parser.add_argument("base", type=parse_reference, metavar="BASE_REPO/BASE_BRANCH")
-    parser.add_argument("target", type=parse_reference, metavar="TARGET_REPO/TARGET_BRANCH")
+    parser.add_argument("base", type=parse_reference, metavar="OWNER/REPO#BASE_BRANCH")
+    parser.add_argument("target", type=parse_reference, metavar="OWNER/REPO#TARGET_BRANCH")
+    if argv is None:
+        argv = sys.argv[1:]
+    if not argv:
+        parser.print_help(sys.stderr)
+        return 2
     args = parser.parse_args(argv)
     try:
         with tempfile.TemporaryDirectory(prefix="generate-file-commits-") as temporary:
