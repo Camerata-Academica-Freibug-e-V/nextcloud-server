@@ -94,7 +94,7 @@ def write_csv(directory, repository, output):
             hyperlink(
                 f"https://github.com/{repository}/commit/{commit}", subjects[commit]
             )
-            for commit in sorted(changes)
+            for commit in sorted(changes, key=lambda commit: (subjects[commit], commit))
         ]
         writer.writerow([hyperlink(file_url, path), *commit_cells])
 
@@ -106,7 +106,8 @@ def main(argv=None):
             "First column: file hyperlink labelled with its path. "
             "Each following cell: one commit hyperlink labelled with its subject. "
             "Cells contain =HYPERLINK(\"URL\";\"LABEL\") formulas. "
-            "Files are sorted by path; commit cells are sorted by commit hash. "
+            "Files are sorted by path; commit cells are sorted by subject line, "
+            "then by commit hash for identical subjects. "
             "Renames include old and new paths; merges include changes against every parent."
         ),
         epilog=(
