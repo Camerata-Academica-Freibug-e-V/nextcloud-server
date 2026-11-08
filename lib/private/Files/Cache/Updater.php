@@ -12,6 +12,7 @@ use Doctrine\DBAL\Exception\DeadlockException;
 use OC\Files\FileInfo;
 use OC\Files\ObjectStore\ObjectStoreStorage;
 use OC\Files\Storage\Storage;
+use OCP\Constants;
 use OCP\Files\Cache\ICache;
 use OCP\Files\Cache\ICacheEntry;
 use OCP\Files\Cache\IPropagator;
@@ -164,7 +165,7 @@ class Updater implements IUpdater {
 				if ($sourceInfo instanceof CacheEntry) {
 					$permissionsToSet = $parentData->getPermissions();
 					if ($sourceInfo->getMimeType() !== ICacheEntry::DIRECTORY_MIMETYPE) {
-						$permissionsToSet &= ~\OCP\Constants::PERMISSION_CREATE;
+						$permissionsToSet &= ~Constants::PERMISSION_CREATE;
 					}
 					$sourceInfo['copy_from_storage_permissions'] = $permissionsToSet;
 					unset($sourceInfo['scan_permissions']);

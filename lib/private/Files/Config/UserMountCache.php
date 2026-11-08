@@ -10,6 +10,8 @@ namespace OC\Files\Config;
 
 use OC\DB\Exceptions\DbalException;
 use OC\User\LazyUser;
+use OCP\Authentication\Exceptions\CredentialsUnavailableException;
+use OCP\Authentication\LoginCredentials\IStore;
 use OCP\Cache\CappedMemoryCache;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Diagnostics\IEventLogger;
@@ -25,6 +27,7 @@ use OCP\Files\NotFoundException;
 use OCP\IDBConnection;
 use OCP\IUser;
 use OCP\IUserManager;
+use OCP\Server;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -72,10 +75,10 @@ class UserMountCache implements IUserMountCache {
 
 		try {
 			/** @var \OCP\Authentication\LoginCredentials\IStore $store */
-			$store = \OC::$server->get(\OCP\Authentication\LoginCredentials\IStore::class);
+			$store = Server::get(IStore::class);
 			$store->getLoginCredentials();
 			$authenticated = true;
-		} catch (\OCP\Authentication\Exceptions\CredentialsUnavailableException $e) {
+		} catch (CredentialsUnavailableException $e) {
 			$authenticated = false;
 		}
 

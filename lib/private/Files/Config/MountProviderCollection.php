@@ -10,6 +10,7 @@ namespace OC\Files\Config;
 
 use OC\Hooks\Emitter;
 use OC\Hooks\EmitterTrait;
+use OCA\Files_Sharing\MountProvider;
 use OCP\Diagnostics\IEventLogger;
 use OCP\Files\Config\IHomeMountProvider;
 use OCP\Files\Config\IMountProvider;
@@ -200,7 +201,7 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 	 */
 	#[\Override]
 	public function registerProvider(IMountProvider $provider, int $priority = self::DEFAULT_PRIORITY): void {
-		if ($provider instanceof \OCA\Files_Sharing\MountProvider
+		if ($provider instanceof MountProvider
 			&& $priority === self::DEFAULT_PRIORITY) {
 			$priority = self::SHARES_PRIORITY;
 		}

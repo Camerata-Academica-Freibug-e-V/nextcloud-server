@@ -16,6 +16,7 @@ use Doctrine\DBAL\Schema\SchemaException;
 use Doctrine\DBAL\Schema\Sequence;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\Type;
+use OC\AppFramework\Utility\SimpleContainer;
 use OC\DB\Connection;
 use OC\DB\MigrationService;
 use OC\DB\SchemaWrapper;
@@ -107,8 +108,8 @@ class MigrationServiceTest extends \Test\TestCase {
 			'20170130180000' => MigrationWithRequiredArgument::class,
 		]);
 
-		$useLazyObjects = \OC\AppFramework\Utility\SimpleContainer::$useLazyObjects;
-		\OC\AppFramework\Utility\SimpleContainer::$useLazyObjects = false;
+		$useLazyObjects = SimpleContainer::$useLazyObjects;
+		SimpleContainer::$useLazyObjects = false;
 		try {
 			$migrationService->createInstance('20170130180000');
 		} catch (\RuntimeException $e) {
@@ -116,7 +117,7 @@ class MigrationServiceTest extends \Test\TestCase {
 			self::assertInstanceOf(\ArgumentCountError::class, $e->getPrevious());
 			return;
 		} finally {
-			\OC\AppFramework\Utility\SimpleContainer::$useLazyObjects = $useLazyObjects;
+			SimpleContainer::$useLazyObjects = $useLazyObjects;
 		}
 		self::fail('Expected migration construction to fail');
 	}

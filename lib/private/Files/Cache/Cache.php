@@ -1327,7 +1327,7 @@ class Cache implements ICache {
 				if ($permissionsToSet !== null) {
 					$perms = $permissionsToSet;
 					if ($subEntry->getMimeType() !== ICacheEntry::DIRECTORY_MIMETYPE) {
-						$perms &= ~\OCP\Constants::PERMISSION_CREATE;
+						$perms &= ~Constants::PERMISSION_CREATE;
 					}
 					$subEntry['copy_from_storage_permissions'] = $perms;
 					unset($subEntry['scan_permissions']);
