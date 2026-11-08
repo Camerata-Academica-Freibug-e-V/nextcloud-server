@@ -50,7 +50,7 @@ jobs:
 
       - name: Download version.php from ${{ env.server_ref }}
         if: ${{ env.server_ref != '' }}
-        run: curl 'https://raw.githubusercontent.com/nextcloud/server/${{ env.server_ref }}/version.php' --output version.php
+        run: curl 'https://raw.githubusercontent.com/Camerata-Academica-Freibug-e-V/nextcloud-server/${{ env.server_ref }}/version.php' --output version.php
 
       - name: Run check
         if: ${{ env.server_ref != '' }}
