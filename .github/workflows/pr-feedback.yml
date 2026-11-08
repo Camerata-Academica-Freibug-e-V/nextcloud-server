@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   pr-feedback:
-    if: ${{ github.repository_owner == 'nextcloud' }}
+    if: ${{ github.repository_owner == 'Camerata-Academica-Freibug-e-V' }}
     runs-on: ubuntu-latest
     steps:
       - name: The get-github-handles-from-website action
