@@ -43,13 +43,21 @@ def has_path(directory, revision, path):
     return bool(git(directory, "ls-tree", "-z", revision, "--", path))
 
 
+def hyperlink(url, label):
+    return '=HYPERLINK("' + url.replace('"', '""') + '";"' + label.replace('"', '""') + '")'
+
+
 def write_csv(directory, repository, output):
     """Include each range commit once per path, including merge-parent changes."""
     commits = git(
         directory, "rev-list", "--reverse", "--topo-order", "base..target"
     ).decode("ascii").splitlines()
     affected = {}
+    subjects = {}
     for commit in commits:
+        subjects[commit] = git(
+            directory, "show", "-s", "--format=%s", commit
+        ).decode("utf-8").rstrip("\n")
         paths = git(
             directory, "diff-tree", "--root", "-m", "--no-renames",
             "--no-commit-id", "--name-only", "-r", "-z", commit,
@@ -82,18 +90,23 @@ def write_csv(directory, repository, output):
             f"https://github.com/{repository}/blob/{revision}/"
             + quote(path, safe="/", encoding="utf-8", errors="surrogateescape")
         )
-        commit_urls = ",".join(
-            f"https://github.com/{repository}/commit/{commit}" for commit in changes
-        )
-        writer.writerow([file_url, commit_urls])
+        commit_cells = [
+            hyperlink(
+                f"https://github.com/{repository}/commit/{commit}", subjects[commit]
+            )
+            for commit in sorted(changes)
+        ]
+        writer.writerow([hyperlink(file_url, path), *commit_cells])
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description=(
-            "Write a headerless, two-column CSV (semicolon separator) for BASE..TARGET. "
-            "Columns: affected file URL; comma-separated commit URLs. "
-            "Files are sorted by path; commits are oldest-first in topological order. "
+            "Write a headerless CSV (semicolon separator) for BASE..TARGET. "
+            "First column: file hyperlink labelled with its path. "
+            "Each following cell: one commit hyperlink labelled with its subject. "
+            "Cells contain =HYPERLINK(\"URL\";\"LABEL\") formulas. "
+            "Files are sorted by path; commit cells are sorted by commit hash. "
             "Renames include old and new paths; merges include changes against every parent."
         ),
         epilog=(
@@ -103,6 +116,7 @@ def main(argv=None):
             "Requires git and network access. For private repositories configure GitHub "
             "Git authentication first (for example, gh auth setup-git). "
             "Fetches commit/tree history into a temporary bare repository without file blobs."
+            " In LibreOffice Calc, enable Evaluate formulas during CSV import."
         ),
     )
     parser.add_argument("base", type=parse_reference, metavar="OWNER/REPO#BASE_BRANCH")

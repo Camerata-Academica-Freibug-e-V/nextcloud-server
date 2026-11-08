@@ -52,11 +52,13 @@ class GenerateFileCommitsTest(unittest.TestCase):
         deleted = self.commit("delete")
         rows = self.rows()
         self.assertEqual(rows, [[
-            f"https://github.com/owner/repository/blob/{second}/a%3B%20%22file%22.txt",
-            ",".join(
-                f"https://github.com/owner/repository/commit/{commit}"
-                for commit in [first, second, deleted]
-            ),
+            f'=HYPERLINK("https://github.com/owner/repository/blob/{second}/a%3B%20%22file%22.txt";"a; ""file"".txt")',
+            *[
+                f'=HYPERLINK("https://github.com/owner/repository/commit/{commit}";"{subject}")'
+                for commit, subject in sorted([
+                    (first, "add"), (second, "update"), (deleted, "delete"),
+                ])
+            ],
         ]])
 
     def test_rename_lists_both_paths(self):
@@ -66,10 +68,10 @@ class GenerateFileCommitsTest(unittest.TestCase):
         renamed = self.commit("rename")
         rows = self.rows()
         self.assertEqual(len(rows), 2)
-        self.assertTrue(rows[0][0].endswith("/new.txt"))
-        self.assertTrue(rows[1][0].endswith(f"/{first}/old.txt"))
-        self.assertEqual(rows[0][1], f"https://github.com/owner/repository/commit/{renamed}")
-        self.assertEqual(len(rows[1][1].split(",")), 2)
+        self.assertIn('/new.txt";"new.txt")', rows[0][0])
+        self.assertIn(f'/{first}/old.txt";"old.txt")', rows[1][0])
+        self.assertEqual(rows[0][1], f'=HYPERLINK("https://github.com/owner/repository/commit/{renamed}";"rename")')
+        self.assertEqual(len(rows[1]), 3)
 
     def test_merge_is_included_once(self):
         self.git("checkout", "--quiet", "-b", "side")
@@ -82,14 +84,30 @@ class GenerateFileCommitsTest(unittest.TestCase):
         merge = self.git("rev-parse", "HEAD")
         rows = self.rows()
         self.assertEqual(len(rows), 2)
-        self.assertEqual(rows[0][1].split(","), [
-            f"https://github.com/owner/repository/commit/{main}",
-            f"https://github.com/owner/repository/commit/{merge}",
-        ])
-        self.assertEqual(rows[1][1].split(","), [
-            f"https://github.com/owner/repository/commit/{side}",
-            f"https://github.com/owner/repository/commit/{merge}",
-        ])
+        for row, changes in [
+            (rows[0], [(main, "main"), (merge, "merge")]),
+            (rows[1], [(side, "side"), (merge, "merge")]),
+        ]:
+            self.assertEqual(row[1:], [
+                f'=HYPERLINK("https://github.com/owner/repository/commit/{commit}";"{subject}")'
+                for commit, subject in sorted(changes)
+            ])
+
+    def test_subject_formula_characters_are_quoted(self):
+        (self.directory / "file.txt").write_text("content")
+        subject = '=SUM(1;2), "quoted"'
+        commit = self.commit(subject)
+        rows = self.rows()
+        self.assertEqual(rows[0][1], (
+            f'=HYPERLINK("https://github.com/owner/repository/commit/{commit}";'
+            '"=SUM(1;2), ""quoted""")'
+        ))
+
+    def test_hyperlink_quotes_both_arguments(self):
+        self.assertEqual(
+            SCRIPT["hyperlink"]('https://example.invalid/"', '"label"'),
+            '=HYPERLINK("https://example.invalid/""";"""label""")',
+        )
 
     def test_empty_range(self):
         self.assertEqual(self.rows(), [])
@@ -111,6 +129,8 @@ class GenerateFileCommitsTest(unittest.TestCase):
         self.assertIn("OWNER/REPO#TARGET_BRANCH", help_text)
         self.assertIn("semicolon separator", help_text)
         self.assertIn("nextcloud/server#stable35", help_text)
+        self.assertIn("commit hash", help_text)
+        self.assertIn("Evaluate formulas", help_text)
 
     def test_invalid_reference(self):
         import argparse
