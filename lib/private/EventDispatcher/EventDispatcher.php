@@ -9,8 +9,6 @@ declare(strict_types=1);
 
 namespace OC\EventDispatcher;
 
-use Throwable;
-
 use OC\Broadcast\Events\BroadcastEvent;
 use OC\Log;
 use OC\Log\PsrLoggerAdapter;
@@ -21,6 +19,7 @@ use OCP\EventDispatcher\IEventDispatcher;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher as SymfonyDispatcher;
+use Throwable;
 use function get_class;
 
 class EventDispatcher implements IEventDispatcher {
@@ -72,7 +71,7 @@ class EventDispatcher implements IEventDispatcher {
 	 */
 	#[\Override]
 	public function dispatch(string $eventName,
-							 Event $event): void {
+		Event $event): void {
 		try {
 			$this->dispatcher->dispatch($event, $eventName);
 
@@ -84,6 +83,9 @@ class EventDispatcher implements IEventDispatcher {
 				);
 			}
 		} catch (Throwable $t) {
+			if (ListenerExceptionPolicy::mustPropagate($event, $t)) {
+				throw $t;
+			}
 			$this->logger->error(
 				'Exception in event handler',
 				[ 'exception' => new \Exception('Broadcasting ' . get_class($event) . ' failed.', 0, $t) ],

@@ -9,9 +9,6 @@ declare(strict_types=1);
 
 namespace OC\EventDispatcher;
 
-use Throwable;
-use Exception;
-
 use OCP\AppFramework\QueryException;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
@@ -43,6 +40,9 @@ final class ServiceEventListener {
 				//       See https://github.com/nextcloud/server/issues/27793 for details.
 				$this->service = $this->container->get($this->class);
 			} catch (QueryException $e) {
+				if (ListenerExceptionPolicy::mustPropagate($event, $e)) {
+					throw $e;
+				}
 				$this->logger->error(
 					sprintf(
 						'Could not load event listener service %s: %s. Make sure the class is auto-loadable by the Nextcloud server container',
@@ -57,13 +57,6 @@ final class ServiceEventListener {
 			}
 		}
 
-		try {
-			$this->service->handle($event);
-		} catch (Throwable $t) {
-			$this->logger->error(
-				'Exception in event handler',
-				[ 'exception' => new Exception('Calling ' . get_class($this->service) . '::handle() failed.', 0, $t) ],
-			);
-		}
+		$this->service->handle($event);
 	}
 }
