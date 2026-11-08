@@ -1006,6 +1006,7 @@ class Server extends ServerContainer implements IServerContainer {
 			);
 		});
 		$this->registerAlias(IEventDispatcher::class, EventDispatcher::class);
+		$this->registerAlias(\Symfony\Component\EventDispatcher\EventDispatcher::class, \OC\EventDispatcher\IsolatingEventDispatcher::class);
 
 		/** @deprecated 35.0.0 */
 		$this->registerDeprecatedAlias('CryptoWrapper', CryptoWrapper::class);
