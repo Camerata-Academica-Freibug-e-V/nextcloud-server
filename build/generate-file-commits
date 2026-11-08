@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""List file and commit URLs for a GitHub BASE..TARGET range as CSV."""
+
+import argparse
+import csv
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from urllib.parse import quote
+
+
+def parse_reference(value):
+    parts = value.split("/", 2)
+    if (
+        len(parts) != 3
+        or not re.fullmatch(r"[A-Za-z0-9_.-]+", parts[0])
+        or not re.fullmatch(r"[A-Za-z0-9_.-]+", parts[1])
+        or not parts[2]
+    ):
+        raise argparse.ArgumentTypeError(
+            "Expected OWNER/REPOSITORY/BRANCH (branch names may contain slashes)"
+        )
+    return "/".join(parts[:2]), parts[2]
+
+
+def git(directory, *args):
+    git_directory = directory / ".git" if (directory / ".git").is_dir() else directory
+    return subprocess.check_output(
+        ["git", "--git-dir", str(git_directory), *args],
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+    )
+
+
+def has_path(directory, revision, path):
+    return bool(git(directory, "ls-tree", "-z", revision, "--", path))
+
+
+def write_csv(directory, repository, output):
+    """Include each range commit once per path, including merge-parent changes."""
+    commits = git(
+        directory, "rev-list", "--reverse", "--topo-order", "base..target"
+    ).decode("ascii").splitlines()
+    affected = {}
+    for commit in commits:
+        paths = git(
+            directory, "diff-tree", "--root", "-m", "--no-renames",
+            "--no-commit-id", "--name-only", "-r", "-z", commit,
+        ).split(b"\0")
+        for raw_path in sorted(set(paths) - {b""}):
+            path = os.fsdecode(raw_path)
+            affected.setdefault(path, []).append(commit)
+
+    writer = csv.writer(output, delimiter=";", lineterminator="\n")
+    target = git(directory, "rev-parse", "target").decode("ascii").strip()
+    for path, changes in sorted(affected.items()):
+        revision = target
+        if not has_path(directory, target, path):
+            for commit in reversed(changes):
+                if has_path(directory, commit, path):
+                    revision = commit
+                    break
+                parents = git(
+                    directory, "show", "-s", "--format=%P", commit
+                ).decode("ascii").split()
+                revision = next(
+                    (parent for parent in parents if has_path(directory, parent, path)),
+                    None,
+                )
+                if revision is not None:
+                    break
+            if revision is None:
+                raise RuntimeError(f"No available revision for affected file: {path}")
+        file_url = (
+            f"https://github.com/{repository}/blob/{revision}/"
+            + quote(path, safe="/", encoding="utf-8", errors="surrogateescape")
+        )
+        commit_urls = ",".join(
+            f"https://github.com/{repository}/commit/{commit}" for commit in changes
+        )
+        writer.writerow([file_url, commit_urls])
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description=(
+            "Write a headerless, two-column CSV (semicolon separator) for BASE..TARGET. "
+            "Columns: affected file URL; comma-separated commit URLs. "
+            "Files are sorted by path; commits are oldest-first in topological order. "
+            "Renames include old and new paths; merges include changes against every parent."
+        ),
+        epilog=(
+            "Example: build/generate-file-commits nextcloud/server/stable35 "
+            "Camerata-Academica-Freibug-e-V/nextcloud-server/"
+            "review/followups-squashed-stable35 > file-commits.csv. "
+            "Requires git and network access. For private repositories configure GitHub "
+            "Git authentication first (for example, gh auth setup-git). "
+            "Fetches commit/tree history into a temporary bare repository without file blobs."
+        ),
+    )
+    parser.add_argument("base", type=parse_reference, metavar="BASE_REPO/BASE_BRANCH")
+    parser.add_argument("target", type=parse_reference, metavar="TARGET_REPO/TARGET_BRANCH")
+    args = parser.parse_args(argv)
+    try:
+        with tempfile.TemporaryDirectory(prefix="generate-file-commits-") as temporary:
+            directory = Path(temporary)
+            git(directory, "init", "--bare", "--quiet")
+            for name, (repository, branch) in [
+                ("base", args.base), ("target", args.target),
+            ]:
+                git(directory, "check-ref-format", "refs/heads/" + branch)
+                git(
+                    directory, "fetch", "--quiet", "--no-tags", "--filter=blob:none",
+                    f"https://github.com/{repository}.git",
+                    f"+refs/heads/{branch}:refs/heads/{name}",
+                )
+            write_csv(directory, args.target[0], sys.stdout)
+    except (OSError, subprocess.CalledProcessError, RuntimeError) as error:
+        print(f"generate-file-commits: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
