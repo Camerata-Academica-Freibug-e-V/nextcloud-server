@@ -16,7 +16,7 @@ referenced contribution policies, but only under the conditions below.
 
 In an interactive session, when explicitly requested by the contributor, an
 agent may draft and create issues and pull requests in
-`rotdrop/nextcloud-server` and `rotdrop/nextcloud-3rdparty`, provided that:
+`Camerata-Academica-Freibug-e-V/nextcloud-server` and `Camerata-Academica-Freibug-e-V/nextcloud-3rdparty`, provided that:
 
 - The action has no side effects on the upstream repositories.
 - The contributor reviews and approves the content before submission.
