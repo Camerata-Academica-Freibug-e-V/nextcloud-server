@@ -43,11 +43,13 @@
 #       and verbatim copying; -n still prevents rule execution.
 #       Example: --make-target collectives=build
 #   --dry-run  preview selection and actions without builds or file changes;
-#       make rules are detected from literal appstore targets without invoking
-#       make (included/generated rules may not be detected). Still queries occ
+#       make rules are detected from literal appstore targets and simple
+#       variable-based includes without invoking make (generated rules and
+#       complex Make expressions may not be detected). Still queries occ
 #       if :disabled is used. Does not validate built assets or build success.
 #   APP further restrict to the given app ids
 #   Progress and dry-run plans go to stdout; warnings and errors go to stderr.
+#   Requires Python 3 and the adjacent has-appstore-target.py helper.
 
 set -euo pipefail
 
@@ -137,6 +139,7 @@ die() { log "$1" "ERROR: $2" >&2; return 1; }
 # window name is set as well; otherwise terminfo tsl/fsl are preferred over
 # the xterm OSC 2 sequence when the terminal declares a status line.
 CMD=$(basename "$0")
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 SHORT_PWD=$(basename "$(pwd)")
 TITLE_MODE=none
 if [[ -t 2 && ${TERM:-dumb} != dumb ]]; then
@@ -180,14 +183,13 @@ detect_rule() {
 		printf 'make-%s\n' "${MAKE_TARGETS[$app]}"
 		return 0
 	fi
-	if [[ -f $dir/Makefile ]]; then
-		if [[ $DRY_RUN -eq 1 ]]; then
-			# Even make -n can execute recursive recipes and $(shell ...).
-			if grep -qE '^[[:space:]]*appstore[[:space:]]*:' "$dir/Makefile"; then
-				echo make-appstore
-				return 0
-			fi
-		elif make -C "$dir" -n appstore >/dev/null 2>&1; then
+	if [[ -f $dir/GNUmakefile || -f $dir/makefile || -f $dir/Makefile ]]; then
+		if python3 "$SCRIPT_DIR/has-appstore-target.py" "$dir"; then
+			echo make-appstore
+			return 0
+		fi
+		# Even make -n can execute recursive recipes and $(shell ...).
+		if [[ $DRY_RUN -eq 0 ]] && make -C "$dir" -n appstore >/dev/null 2>&1; then
 			echo make-appstore
 			return 0
 		fi

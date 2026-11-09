@@ -304,6 +304,45 @@ class SelectionTest(unittest.TestCase):
                 )
         self.run_dry("--make-target", success=False)
 
+    def test_included_appstore_target_is_not_legacy(self):
+        app = self.root / "apps/calendar"
+        (app / ".git").touch()
+        fragments = app / "dev-scripts/lib/makefile"
+        fragments.mkdir(parents=True)
+        (app / "Makefile").write_text(
+            "ABSSRCDIR = $(CURDIR)\n"
+            "DEV_LIB_DIR = $(ABSSRCDIR)/dev-scripts/lib\n"
+            "include $(DEV_LIB_DIR)/makefile/app.mk\n"
+        )
+        (fragments / "app.mk").write_text(
+            "$(error missing build-time tool)\n"
+            "appstore:\n\t+touch ../../must-not-run\n"
+        )
+        output = self.run_dry("--only", ":no-legacy")
+        self.assertIn("[calendar] would package with rule 'make-appstore'", output)
+        self.assertNotIn("[calendar] would", self.run_dry("--only", ":legacy"))
+        self.assertIn(
+            "[calendar] would use heuristic cleanup",
+            self.run_dry("-n", "--only", ":no-legacy"),
+        )
+        # Ordinary classification should not run Make or its build-time checks.
+        self.assertEqual(self.run_pack("-i", ":no-legacy"), {"calendar", "modern"})
+
+    def test_include_detection_cycles_and_unresolved_expressions(self):
+        app = self.root / "apps/calendar"
+        (app / ".git").touch()
+        (app / "Makefile").write_text(
+            "include nested.mk\n"
+            "include $(shell touch ../../must-not-run)\n"
+        )
+        (app / "nested.mk").write_text("include Makefile\n")
+        self.assertIn("[calendar] would", self.run_dry("--only", ":legacy"))
+        self.assertNotIn("[calendar] would", self.run_dry("--only", ":no-legacy"))
+        # GNU Make's lowercase entry point and alternate variable syntax.
+        (app / "makefile").write_text("PART ?= nested\ninclude ${PART}.mk\n")
+        (app / "nested.mk").write_text("appstore:\n\t@true\n")
+        self.assertIn("[calendar] would", self.run_dry("--only", ":no-legacy"))
+
     def test_make_target_override_creates_distribution_archive(self):
         (self.root / "apps/calendar/Makefile").write_text(
             ".PHONY: appstore build\n"
