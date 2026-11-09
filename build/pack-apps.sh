@@ -85,26 +85,38 @@ for app in ${EXCLUDES//,/ }; do EXCLUDED[$app]=1; done
 log() { printf '[%s] %s\n' "$1" "$2" >&2; }
 die() { log "$1" "ERROR: $2"; return 1; }
 
-# Sets the xterm-compatible terminal title, if stderr is a terminal.
+# Sets the terminal title, if stderr is a terminal. Inside screen/tmux the
+# window name is set as well; otherwise terminfo tsl/fsl are preferred over
+# the xterm OSC 2 sequence when the terminal declares a status line.
 CMD=$(basename "$0")
 SHORT_PWD=$(basename "$(pwd)")
-TITLE_ENABLED=0
-[[ -t 2 && ${TERM:-dumb} != dumb ]] && TITLE_ENABLED=1
-setTitle() {
-	[[ $TITLE_ENABLED -eq 1 ]] || return 0
-	if [[ -n ${1:-} ]]; then
-		printf '\033]2;.../%s - %s: %s\007' "$SHORT_PWD" "$CMD" "$1" >&2
+TITLE_MODE=none
+if [[ -t 2 && ${TERM:-dumb} != dumb ]]; then
+	if [[ -n ${TMUX:-} || $TERM == screen* || $TERM == tmux* ]]; then
+		TITLE_MODE=multiplexer
+	elif tput hs 2>/dev/null && TSL=$(tput tsl 2>/dev/null) && FSL=$(tput fsl 2>/dev/null) \
+		&& [[ -n $TSL && -n $FSL ]]; then
+		TITLE_MODE=terminfo
 	else
-		printf '\033]2;\007' >&2
+		TITLE_MODE=xterm
 	fi
+fi
+setTitle() {
+	local title=
+	[[ -n ${1:-} ]] && title=".../$SHORT_PWD - $CMD: $1"
+	case $TITLE_MODE in
+		multiplexer) printf '\033k%s\033\\\033]2;%s\007' "$title" "$title" >&2 ;;
+		terminfo) printf '%s%s%s' "$TSL" "$title" "$FSL" >&2 ;;
+		xterm) printf '\033]2;%s\007' "$title" >&2 ;;
+	esac
 }
 # Save the title on the xterm title stack and restore it on exit; terminals
 # without a title stack ignore these sequences and fall back to the reset.
-if [[ $TITLE_ENABLED -eq 1 ]]; then
+if [[ $TITLE_MODE == xterm ]]; then
 	printf '\033[22;0t' >&2
 	restoreTitle() { setTitle; printf '\033[23;0t' >&2; }
 else
-	restoreTitle() { :; }
+	restoreTitle() { setTitle; }
 fi
 if [[ -n $TMP_STAGING ]]; then
 	trap 'restoreTitle; rm -rf "$STAGING"' EXIT
