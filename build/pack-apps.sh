@@ -32,6 +32,7 @@ OUTPUT=./apps-$(date +%Y%m%d-%H%M%S).tar.gz
 KEEP_GOING=0
 NO_RULES=0
 STAGING=
+TMP_STAGING=
 CONTINUE=0
 DEFAULT_EXCLUDES="
 	admin_audit appstore cloud_federation_api comments contactsinteraction
@@ -64,7 +65,7 @@ OUTPUT=$(realpath -m "$OUTPUT")
 if [[ -z $STAGING ]]; then
 	[[ $CONTINUE -eq 0 ]] || { echo "-c requires -s STAGING_DIR" >&2; exit 2; }
 	STAGING=$(mktemp -d)
-	trap 'rm -rf "$STAGING"' EXIT
+	TMP_STAGING=1
 else
 	STAGING=$(realpath -m "$STAGING")
 	if [[ $CONTINUE -eq 0 && -d $STAGING/apps ]] && [[ -n $(ls -A "$STAGING/apps") ]]; then
@@ -84,6 +85,33 @@ for app in ${EXCLUDES//,/ }; do EXCLUDED[$app]=1; done
 log() { printf '[%s] %s\n' "$1" "$2" >&2; }
 die() { log "$1" "ERROR: $2"; return 1; }
 
+# Sets the xterm-compatible terminal title, if stderr is a terminal.
+CMD=$(basename "$0")
+TITLE_ENABLED=0
+[[ -t 2 && ${TERM:-dumb} != dumb ]] && TITLE_ENABLED=1
+setTitle() {
+	[[ $TITLE_ENABLED -eq 1 ]] || return 0
+	if [[ -n ${1:-} ]]; then
+		printf '\033]2;%s: %s\007' "$CMD" "$1" >&2
+	else
+		printf '\033]2;\007' >&2
+	fi
+}
+# Save the title on the xterm title stack and restore it on exit; terminals
+# without a title stack ignore these sequences and fall back to the reset.
+if [[ $TITLE_ENABLED -eq 1 ]]; then
+	printf '\033[22;0t' >&2
+	restoreTitle() { setTitle; printf '\033[23;0t' >&2; }
+else
+	restoreTitle() { :; }
+fi
+if [[ -n $TMP_STAGING ]]; then
+	trap 'restoreTitle; rm -rf "$STAGING"' EXIT
+else
+	trap restoreTitle EXIT
+fi
+trap 'exit 130' INT TERM
+
 # Prints the name of a packaging rule for the app, or nothing.
 detect_rule() {
 	local dir=$1
@@ -99,6 +127,7 @@ detect_rule() {
 package_with_rule() {
 	local app=$1 dir=$2 rule=$3 dest=$4 marker tarball
 	marker=$(mktemp)
+	setTitle "$app ($rule)"
 	case $rule in
 		make-appstore) (cd "$dir" && make appstore) >&2 ;;
 		krankerl) (cd "$dir" && krankerl package) >&2 ;;
@@ -185,6 +214,7 @@ fi
 
 FAILED=()
 for app in "${APPS[@]}"; do
+	setTitle "$app"
 	if [[ ! -f $APPS_DIR/$app/appinfo/info.xml ]]; then
 		log "$app" "not an app, skipping"
 		continue
@@ -206,6 +236,7 @@ for app in "${APPS[@]}"; do
 done
 rmdir "$PARTIAL"
 
+setTitle "writing $(basename "$OUTPUT")"
 tar -czf "$OUTPUT" -C "$STAGING" apps
 log pack "wrote $OUTPUT"
 if [[ ${#FAILED[@]} -gt 0 ]]; then
