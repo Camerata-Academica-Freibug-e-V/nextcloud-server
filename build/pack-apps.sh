@@ -87,12 +87,13 @@ die() { log "$1" "ERROR: $2"; return 1; }
 
 # Sets the xterm-compatible terminal title, if stderr is a terminal.
 CMD=$(basename "$0")
+SHORT_PWD=$(basename "$(pwd)")
 TITLE_ENABLED=0
 [[ -t 2 && ${TERM:-dumb} != dumb ]] && TITLE_ENABLED=1
 setTitle() {
 	[[ $TITLE_ENABLED -eq 1 ]] || return 0
 	if [[ -n ${1:-} ]]; then
-		printf '\033]2;%s: %s\007' "$CMD" "$1" >&2
+		printf '\033]2;.../%s - %s: %s\007' "$SHORT_PWD" "$CMD" "$1" >&2
 	else
 		printf '\033]2;\007' >&2
 	fi
