@@ -21,7 +21,8 @@
 #   -x, --exclude LIST  comma/space separated app names or classes to exclude
 #       (adds to the default :server exclusion; :no-server cancels it)
 #   -i, --only LIST     select only these app names or classes (union)
-#       :server     bundled apps listed in SERVER_APPS
+#       :server     apps with directly tracked files in Git's current index
+#                   below APPS_DIR (submodules and untracked apps excluded)
 #       :no-server  cancel bundled-app exclusion; in --only, non-bundled apps
 #       :disabled   apps reported disabled by php ./occ app:list --output=json
 #       :legacy     apps without an apparent make appstore/krankerl rule
@@ -48,15 +49,6 @@ DRY_RUN=0
 STAGING=
 TMP_STAGING=
 CONTINUE=0
-SERVER_APPS="
-	admin_audit appstore cloud_federation_api comments contactsinteraction
-	dashboard dav encryption federatedfilesharing federation files
-	files_external files_reminders files_sharing files_trashbin files_versions
-	lookup_server_connector oauth2 profile provisioning_api settings
-	sharebymail sharing systemtags testing theming twofactor_backupcodes
-	updatenotification user_ldap user_status weather_status
-	webhook_listeners workflowengine
-"
 EXCLUDES=
 ONLY=
 ONLY_SET=0
@@ -267,6 +259,19 @@ process_app() {
 }
 
 declare -A SERVER=() DISABLED=() RULES=()
+if ! SERVER_APPS=$(
+	git -C "$APPS_DIR" ls-files --stage -z -- . |
+		while IFS= read -r -d '' entry; do
+			mode=${entry%% *}
+			path=${entry#*$'\t'}
+			if [[ $mode != 160000 && $path == */* ]]; then
+				printf '%s\n' "${path%%/*}"
+			fi
+		done
+); then
+	die selection "cannot determine server apps from Git's index in $APPS_DIR"
+	exit 1
+fi
 for app in $SERVER_APPS; do SERVER[$app]=1; done
 
 EXCLUDES=${EXCLUDES//,/ }
