@@ -93,6 +93,8 @@ class SelectionTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0, result.stderr)
             return result
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertIn("[pack] wrote ", result.stdout)
         with tarfile.open(self.root / "out.tgz") as archive:
             return {
                 name.split("/")[1]
@@ -229,7 +231,21 @@ class SelectionTest(unittest.TestCase):
             for path in self.root.rglob("*")
         }
         self.assertEqual(before, after, "dry run changed files or directories")
+        if success:
+            self.assertEqual(result.stderr, "")
+            return result.stdout
         return result.stderr
+
+    def test_progress_and_errors_use_separate_streams(self):
+        (self.root / "apps/legacy/.git").mkdir()
+        (self.root / "apps/legacy/package.json").write_text("{}")
+        result = self.run_pack("-k", success=False)
+        self.assertIn("[calendar] no .git, copying verbatim", result.stdout)
+        self.assertIn("[pack] wrote ", result.stdout)
+        self.assertNotIn("ERROR:", result.stdout)
+        self.assertIn("[legacy] ERROR:", result.stderr)
+        self.assertIn("[pack] skipped failing apps: legacy", result.stderr)
+        self.assertNotIn("copying verbatim", result.stderr)
 
     def test_dry_run_previews_all_methods_without_running_build_tools(self):
         (self.root / "apps/modern/.git").touch()
