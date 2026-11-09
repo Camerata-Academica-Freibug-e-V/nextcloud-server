@@ -31,6 +31,9 @@
 #       :no-server  cancel bundled-app exclusion; in --only, non-bundled apps
 #       :disabled   apps reported disabled by php ./occ app:list --output=json
 #       :legacy     apps without an apparent make appstore/krankerl rule
+#       :git        apps with a .git folder or file; :no-git matches without
+#       Example: --only :enabled --exclude :git (enabled distribution apps,
+#       excluding server apps by default)
 #       Prefix classes with no- to match their complement (:no-legacy selects
 #       apps with packaging rules). :enabled aliases :no-disabled;
 #       :no-enabled aliases :disabled. In --exclude, :no-server remains the
@@ -377,7 +380,7 @@ NEED_DISABLED=0
 NEED_LEGACY=0
 for token in "${EXCLUDE_TOKENS[@]}" "${ONLY_TOKENS[@]}"; do
 	case $token in
-		:server|:no-server) ;;
+		:server|:no-server|:git|:no-git) ;;
 		:disabled|:no-disabled|:enabled|:no-enabled) NEED_DISABLED=1 ;;
 		:legacy|:no-legacy) NEED_LEGACY=1 ;;
 		:*) die selection "unknown class: $token"; exit 2 ;;
@@ -417,6 +420,8 @@ matches() {
 			:enabled|:no-disabled) [[ -z ${DISABLED[$app]:-} ]] && return 0 ;;
 			:legacy) [[ -z ${RULES[$app]:-} ]] && return 0 ;;
 			:no-legacy) [[ -n ${RULES[$app]:-} ]] && return 0 ;;
+			:git) [[ -e $APPS_DIR/$app/.git ]] && return 0 ;;
+			:no-git) [[ ! -e $APPS_DIR/$app/.git ]] && return 0 ;;
 			*) [[ $token == "$app" ]] && return 0 ;;
 		esac
 	done
