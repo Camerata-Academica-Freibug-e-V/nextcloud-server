@@ -156,6 +156,85 @@ class SelectionTest(unittest.TestCase):
         self.assertTrue((self.root / "stage/apps/modern").is_dir())
         self.assertEqual(self.run_pack("-s", "stage", "-c", "-i", "missing"), set())
 
+    def run_dry(self, *args, success=True):
+        before = {
+            str(path.relative_to(self.root)): path.read_bytes() if path.is_file() else None
+            for path in self.root.rglob("*")
+        }
+        result = subprocess.run(
+            ["bash", str(SCRIPT), "--dry-run", "-o", "out.tgz", *args],
+            cwd=self.root, env=self.env, text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode == 0, success, result.stderr)
+        after = {
+            str(path.relative_to(self.root)): path.read_bytes() if path.is_file() else None
+            for path in self.root.rglob("*")
+        }
+        self.assertEqual(before, after, "dry run changed files or directories")
+        return result.stderr
+
+    def test_dry_run_previews_all_methods_without_running_build_tools(self):
+        (self.root / "apps/modern/.git").touch()
+        (self.root / "apps/legacy/.git").mkdir()
+        (self.root / "apps/legacy/package.json").write_text("{}")
+        (self.root / "apps/modern/Makefile").write_text(
+            "SIDE_EFFECT := $(shell touch ../../make-was-run)\n"
+            "appstore:\n\t+touch ../../recipe-was-run\n"
+        )
+        make = self.root / "bin/make"
+        make.write_text("#!/bin/sh\ntouch make-was-run\nexit 1\n")
+        make.chmod(0o755)
+        krankerl = self.root / "bin/krankerl"
+        krankerl.write_text("#!/bin/sh\ntouch krankerl-was-run\nexit 1\n")
+        krankerl.chmod(0o755)
+        (self.root / "apps/disabled/.git").touch()
+        (self.root / "apps/disabled/krankerl.toml").touch()
+        tempdir = self.root / "temporary"
+        tempdir.mkdir()
+        self.env["TMPDIR"] = str(tempdir)
+        output = self.run_dry()
+        self.assertIn("[calendar] would copy verbatim", output)
+        self.assertIn("[modern] would package with rule 'make-appstore'", output)
+        self.assertIn("[disabled] would package with rule 'krankerl'", output)
+        self.assertIn("[legacy] would use heuristic cleanup", output)
+        self.assertIn("would archive 4 apps", output)
+        self.assertIn("[files] excluded", output)
+        self.assertIn(
+            "[modern] would use heuristic cleanup",
+            self.run_dry("-n", "--only", "modern", "-s", "new-stage"),
+        )
+
+    def test_dry_run_filters_and_continue_preserve_staging_and_archive(self):
+        (self.root / "stage/apps/calendar").mkdir(parents=True)
+        partial = self.root / "stage/.partial/modern/incomplete"
+        partial.parent.mkdir(parents=True)
+        partial.write_text("keep")
+        (self.root / "out.tgz").write_bytes(b"existing archive")
+        output = self.run_dry(
+            "-s", "stage", "-c", "--only", "calendar,modern,disabled",
+            "-x", ":disabled",
+        )
+        self.assertIn("[calendar] already staged, skipping", output)
+        self.assertIn("[modern] would copy verbatim", output)
+        self.assertIn("[disabled] excluded", output)
+        self.assertIn("would archive 2 apps", output)
+        self.assertIn(
+            "would archive 0 apps",
+            self.run_dry("-s", "stage", "-c", "--only="),
+        )
+        self.run_dry("-s", "stage", success=False)
+
+    def test_dry_run_legacy_selection_and_query_errors(self):
+        output = self.run_dry("--only", ":legacy")
+        self.assertIn("[calendar] would copy verbatim", output)
+        self.assertNotIn("[modern] would", output)
+        self.run_dry("-c", success=False)
+        self.run_dry("-x", ":unknown", success=False)
+        self.env["PHP_STATUS"] = "1"
+        self.assertIn(
+            "cannot query", self.run_dry("--only", ":disabled", success=False)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
