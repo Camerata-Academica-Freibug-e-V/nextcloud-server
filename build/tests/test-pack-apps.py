@@ -216,6 +216,28 @@ class SelectionTest(unittest.TestCase):
                     "invalid app:list", self.run_pack("-x", ":disabled", success=False).stderr
                 )
 
+    def test_git_classes(self):
+        (self.root / "apps/calendar/.git").mkdir()
+        (self.root / "apps/modern/.git").write_text("gitdir: /unused/worktree")
+        self.assertEqual(self.run_pack("-i", ":git"), {"calendar", "modern"})
+        self.assertEqual(self.run_pack("-i", ":no-git"), {"disabled", "legacy"})
+        self.assertEqual(self.run_pack("-x", ":git"), {"disabled", "legacy"})
+        self.assertEqual(self.run_pack("-x", ":no-git"), {"calendar", "modern"})
+        self.assertEqual(
+            self.run_pack("-i", ":enabled", "-x", ":git"), {"legacy"}
+        )
+        self.assertEqual(
+            self.run_pack("-i", ":no-git", "-x", ":no-server"),
+            {"files", "disabled", "legacy"},
+        )
+        self.assertEqual(
+            self.run_pack("-i", ":git,:no-git"),
+            {"calendar", "disabled", "legacy", "modern"},
+        )
+        output = self.run_dry("-i", ":enabled", "-x", ":git")
+        self.assertIn("[legacy] would copy verbatim", output)
+        self.assertNotIn("[calendar] would", output)
+
     def test_complement_classes_and_enabled_aliases(self):
         for token in (":enabled", ":no-disabled"):
             with self.subTest(token=token):
