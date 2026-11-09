@@ -54,8 +54,11 @@
 #   APP further restrict to the given app ids
 #   Progress and dry-run plans go to stdout; warnings and errors go to stderr.
 #   Requires Python 3 and the adjacent has-appstore-target.py helper.
+#   Builds use Sharp's bundled libvips instead of a globally installed version.
 
 set -euo pipefail
+
+export SHARP_IGNORE_GLOBAL_LIBVIPS=1
 
 APPS_DIR=./apps
 OUTPUT=

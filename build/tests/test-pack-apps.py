@@ -389,6 +389,7 @@ class SelectionTest(unittest.TestCase):
             ".PHONY: appstore build\n"
             "appstore:\n\t@false\n"
             "build:\n"
+            "\ttest \"$$SHARP_IGNORE_GLOBAL_LIBVIPS\" = 1\n"
             "\tmkdir -p build/release/calendar/appinfo\n"
             "\tcp appinfo/info.xml build/release/calendar/appinfo/\n"
             "\tprintf 'distribution' > build/release/calendar/packaged\n"
@@ -397,7 +398,8 @@ class SelectionTest(unittest.TestCase):
         result = subprocess.run(
             ["bash", str(SCRIPT), "--only", "calendar",
              "--make-target", "calendar=build", "-o", "out.tgz"],
-            cwd=self.root, env=self.env, text=True, capture_output=True,
+            cwd=self.root, env=dict(self.env, SHARP_IGNORE_GLOBAL_LIBVIPS="0"),
+            text=True, capture_output=True,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("packaging with rule 'make-build'", result.stdout)
