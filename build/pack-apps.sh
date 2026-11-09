@@ -27,6 +27,10 @@
 #       :no-server  cancel bundled-app exclusion; in --only, non-bundled apps
 #       :disabled   apps reported disabled by php ./occ app:list --output=json
 #       :legacy     apps without an apparent make appstore/krankerl rule
+#       Prefix classes with no- to match their complement (:no-legacy selects
+#       apps with packaging rules). :enabled aliases :no-disabled;
+#       :no-enabled aliases :disabled. In --exclude, :no-server remains the
+#       special directive cancelling the default bundled-app exclusion.
 #       Class matches within a list are combined with app names by union.
 #       :disabled requires php and jq and queries occ in the current folder.
 #       :legacy checks rule availability even when -n disables rule execution.
@@ -321,8 +325,8 @@ NEED_LEGACY=0
 for token in "${EXCLUDE_TOKENS[@]}" "${ONLY_TOKENS[@]}"; do
 	case $token in
 		:server|:no-server) ;;
-		:disabled) NEED_DISABLED=1 ;;
-		:legacy) NEED_LEGACY=1 ;;
+		:disabled|:no-disabled|:enabled|:no-enabled) NEED_DISABLED=1 ;;
+		:legacy|:no-legacy) NEED_LEGACY=1 ;;
 		:*) die selection "unknown class: $token"; exit 2 ;;
 		*) [[ $token =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]] \
 			|| { die selection "invalid app name: $token"; exit 2; } ;;
@@ -356,8 +360,10 @@ matches() {
 		case $token in
 			:server) [[ -n ${SERVER[$app]:-} ]] && return 0 ;;
 			:no-server) [[ -z ${SERVER[$app]:-} ]] && return 0 ;;
-			:disabled) [[ -n ${DISABLED[$app]:-} ]] && return 0 ;;
+			:disabled|:no-enabled) [[ -n ${DISABLED[$app]:-} ]] && return 0 ;;
+			:enabled|:no-disabled) [[ -z ${DISABLED[$app]:-} ]] && return 0 ;;
 			:legacy) [[ -z ${RULES[$app]:-} ]] && return 0 ;;
+			:no-legacy) [[ -n ${RULES[$app]:-} ]] && return 0 ;;
 			*) [[ $token == "$app" ]] && return 0 ;;
 		esac
 	done
