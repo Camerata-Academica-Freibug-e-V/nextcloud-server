@@ -12,7 +12,7 @@
 #    then node_modules/, vendor-bin/*, VCS files, top-level test suites
 #    (test/, tests/, phpunit/, unit/) and (for JS apps) src/ are dropped
 #
-# Usage: pack-apps.sh [-a APPS_DIR] [-o OUTPUT.tar.gz] [-s STAGING_DIR] [-c]
+# Usage: pack-apps.sh [-a APPS_DIR] [-o OUTPUT.tar.gz] [-d OUTPUT_DIR] [-s STAGING_DIR] [-c]
 #                     [-x EXCLUDES] [-i ONLY] [-k] [-n] [--dry-run] [-h] [APP ...]
 #   -h, --help  display this header and exit
 #   -a  apps directory (default: ./apps)
@@ -21,6 +21,8 @@
 #       exclude-<union>, in that order. Unions use +, are sorted/deduplicated,
 #       and normalize class aliases. The implicit :server filter is omitted.
 #       An empty --only list is labelled only-none. Explicit -o is unchanged.
+#   -d, --output-dir DIR  directory for the default archive name (default: .);
+#       created when writing; ignored when -o is given
 #   -s  staging directory, kept after the run (default: temporary, removed)
 #   -c  continue: skip apps already present in the staging directory
 #   -x, --exclude LIST  comma/space separated app names or classes to exclude
@@ -70,6 +72,7 @@ export SHARP_IGNORE_GLOBAL_LIBVIPS=1
 
 APPS_DIR=./apps
 OUTPUT=
+OUTPUT_DIR=.
 KEEP_GOING=0
 NO_RULES=0
 DRY_RUN=0
@@ -117,11 +120,12 @@ while [[ $# -gt 0 ]]; do
 			sed -n '2,/^$/ { /^#/ { s/^# \{0,1\}//; p; }; }' "$0"
 			exit 0
 			;;
-		-a|-o|-s|-x|--exclude|-i|--only|--make-target|--build-command)
+		-a|-o|-d|--output-dir|-s|-x|--exclude|-i|--only|--make-target|--build-command)
 			[[ $# -ge 2 ]] || { echo "missing argument for $1" >&2; exit 2; }
 			case $1 in
 				-a) APPS_DIR=$2 ;;
 				-o) OUTPUT=$2 ;;
+				-d|--output-dir) OUTPUT_DIR=$2 ;;
 				-s) STAGING=$2 ;;
 				-x|--exclude) EXCLUDES+=" $2" ;;
 				-i|--only) ONLY+=" $2"; ONLY_SET=1 ;;
@@ -489,7 +493,7 @@ if [[ -z $OUTPUT ]]; then
 	if [[ ${#NAME_EXCLUDES[@]} -gt 0 ]]; then
 		SUFFIX+="-exclude-$(selection_union "${NAME_EXCLUDES[@]}")"
 	fi
-	OUTPUT=$(realpath -m "./apps-$(date +%Y%m%d-%H%M%S)$SUFFIX.tar.gz")
+	OUTPUT=$(realpath -m "$OUTPUT_DIR/apps-$(date +%Y%m%d-%H%M%S)$SUFFIX.tar.gz")
 fi
 
 FAILED=()
@@ -525,6 +529,7 @@ if [[ $DRY_RUN -eq 1 ]]; then
 fi
 rmdir "$PARTIAL"
 
+mkdir -p -- "$(dirname "$OUTPUT")"
 setTitle "writing $(basename "$OUTPUT")"
 tar -czf "$OUTPUT" -C "$STAGING" --files-from /dev/null -- "${ARCHIVE_APPS[@]}"
 log pack "wrote $OUTPUT"
