@@ -119,6 +119,47 @@ class SelectionTest(unittest.TestCase):
                     self.assertEqual(result.stderr, "")
                     self.assertEqual(list(Path(directory).iterdir()), [])
 
+    def test_default_archive_selection_suffixes(self):
+        date = self.root / "bin/date"
+        date.write_text("#!/bin/sh\nprintf '20261109-203119\\n'\n")
+        date.chmod(0o755)
+        cases = (
+            ([], ""),
+            (["--only", ":no-legacy"], "-only-no-legacy"),
+            (["--only", ":enabled", "-x", ":legacy"], "-only-enabled-exclude-legacy"),
+            (["-x", ":no-server"], "-with-server"),
+            (["--only", "contacts,calendar", "-x", ":disabled"],
+             "-only-calendar+contacts-exclude-disabled"),
+            (["--only", ":no-disabled,:enabled", "-x", ":no-enabled,:disabled"],
+             "-only-enabled-exclude-disabled"),
+            (["-i", "modern", "-i", "calendar,modern", "modern", "calendar", "modern",
+              "-x", ":no-server,disabled", "-x", "disabled"],
+             "-only-calendar+modern-apps-calendar+modern-with-server-exclude-disabled"),
+            (["--only="], "-only-none"),
+            (["-x", ":server"], "-exclude-server"),
+        )
+        for args, suffix in cases:
+            with self.subTest(args=args):
+                result = subprocess.run(
+                    ["bash", str(SCRIPT), "--dry-run", *args],
+                    cwd=self.root, env=self.env, text=True, capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(
+                    f"to {self.root}/apps-20261109-203119{suffix}.tar.gz", result.stdout
+                )
+                self.assertEqual(list(self.root.glob("*.tar.gz")), [])
+        result = subprocess.run(
+            ["bash", str(SCRIPT), "-n", "--only", "calendar"],
+            cwd=self.root, env=self.env, text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        with tarfile.open(self.root / "apps-20261109-203119-only-calendar.tar.gz") as archive:
+            self.assertIn("apps/calendar/appinfo/info.xml", archive.getnames())
+        self.assertIn(
+            f"to {self.root}/out.tgz", self.run_dry("--only", ":no-legacy")
+        )
+
     def test_default_and_server_override(self):
         self.assertEqual(
             self.run_pack(), {"calendar", "disabled", "legacy", "modern"}
