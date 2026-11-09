@@ -160,6 +160,28 @@ class SelectionTest(unittest.TestCase):
             f"to {self.root}/out.tgz", self.run_dry("--only", ":no-legacy")
         )
 
+    def test_output_dir(self):
+        date = self.root / "bin/date"
+        date.write_text("#!/bin/sh\nprintf '20261109-203119\\n'\n")
+        date.chmod(0o755)
+        target = self.root / "dist/sub"
+        name = "apps-20261109-203119-only-calendar.tar.gz"
+        dry = subprocess.run(
+            ["bash", str(SCRIPT), "--dry-run", "-d", str(target), "--only", "calendar"],
+            cwd=self.root, env=self.env, text=True, capture_output=True,
+        )
+        self.assertEqual(dry.returncode, 0, dry.stderr)
+        self.assertIn(f"to {target}/{name}", dry.stdout)
+        self.assertFalse((self.root / "dist").exists())
+        result = subprocess.run(
+            ["bash", str(SCRIPT), "-n", "--output-dir", "dist/sub", "--only", "calendar"],
+            cwd=self.root, env=self.env, text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((target / name).is_file())
+        self.run_pack("-d", "ignored", "--only", "calendar")
+        self.assertFalse((self.root / "ignored").exists())
+
     def test_default_and_server_override(self):
         self.assertEqual(
             self.run_pack(), {"calendar", "disabled", "legacy", "modern"}
