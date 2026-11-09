@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+#
+# SPDX-FileCopyrightText: 2026 2026 Claus-Justus Heine
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
 # Build a Nextcloud distribution tarball from a checkout (no signing).
 # Usage: make-dist.sh [path-to-checkout] [output-dir]
 set -euo pipefail
