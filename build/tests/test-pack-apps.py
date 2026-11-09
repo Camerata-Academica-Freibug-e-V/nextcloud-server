@@ -175,6 +175,43 @@ class SelectionTest(unittest.TestCase):
                     "invalid app:list", self.run_pack("-x", ":disabled", success=False).stderr
                 )
 
+    def test_complement_classes_and_enabled_aliases(self):
+        for token in (":enabled", ":no-disabled"):
+            with self.subTest(token=token):
+                self.assertEqual(
+                    self.run_pack("--only", token), {"calendar", "legacy", "modern"}
+                )
+                self.assertEqual(self.run_pack("--exclude", token), {"disabled"})
+                self.assertEqual(
+                    self.run_pack("--only", token, "-x", "calendar"),
+                    {"legacy", "modern"},
+                )
+        self.assertEqual(self.run_pack("--only", ":no-enabled"), {"disabled"})
+        self.assertEqual(
+            self.run_pack("--exclude", ":no-enabled"), {"calendar", "legacy", "modern"}
+        )
+        self.assertEqual(self.run_pack("--only", ":no-legacy"), {"modern"})
+        self.assertEqual(
+            self.run_pack("--exclude", ":no-legacy"), {"calendar", "disabled", "legacy"}
+        )
+        self.assertEqual(
+            self.run_pack("--only", ":no-legacy", "--make-target", "calendar=build"),
+            {"calendar", "modern"},
+        )
+        self.assertEqual(
+            self.run_pack("--only", ":legacy,:no-legacy"),
+            {"calendar", "disabled", "legacy", "modern"},
+        )
+        self.assertIn(
+            "[modern] would copy verbatim", self.run_dry("--only", ":no-legacy")
+        )
+        self.env["PHP_STATUS"] = "1"
+        for token in (":enabled", ":no-disabled", ":no-enabled"):
+            with self.subTest(token=token):
+                self.assertIn(
+                    "cannot query", self.run_pack("--only", token, success=False).stderr
+                )
+
     def test_legacy_is_independent_of_no_rules_option(self):
         self.assertEqual(self.run_pack("-x", ":legacy"), {"modern"})
         self.assertEqual(
