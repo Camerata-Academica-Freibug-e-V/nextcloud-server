@@ -247,6 +247,60 @@ class SelectionTest(unittest.TestCase):
         self.assertIn("[pack] skipped failing apps: legacy", result.stderr)
         self.assertNotIn("copying verbatim", result.stderr)
 
+    def test_make_target_override_dry_run_and_legacy(self):
+        output = self.run_dry(
+            "--make-target", "calendar=build", "--make-target=legacy=dist",
+            "-x", ":legacy",
+        )
+        self.assertIn("[calendar] would package with rule 'make-build'", output)
+        self.assertIn("[legacy] would package with rule 'make-dist'", output)
+        self.assertNotIn("[disabled] would", output)
+        self.assertIn(
+            "[calendar] would use heuristic cleanup",
+            self.run_dry("-n", "--make-target", "calendar=build", "--only", "calendar"),
+        )
+        for value in ("calendar", "=build", "calendar=", "../app=build",
+                      "calendar=--eval", "calendar=build extra", "calendar=A=B"):
+            with self.subTest(value=value):
+                self.assertIn(
+                    "invalid make-target", self.run_dry("--make-target", value, success=False)
+                )
+        self.run_dry("--make-target", success=False)
+
+    def test_make_target_override_creates_distribution_archive(self):
+        (self.root / "apps/calendar/Makefile").write_text(
+            ".PHONY: appstore build\n"
+            "appstore:\n\t@false\n"
+            "build:\n"
+            "\tmkdir -p build/release/calendar/appinfo\n"
+            "\tcp appinfo/info.xml build/release/calendar/appinfo/\n"
+            "\tprintf 'distribution' > build/release/calendar/packaged\n"
+            "\ttar -czf build/release/calendar.tgz -C build/release calendar\n"
+        )
+        result = subprocess.run(
+            ["bash", str(SCRIPT), "--only", "calendar",
+             "--make-target", "calendar=build", "-o", "out.tgz"],
+            cwd=self.root, env=self.env, text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("packaging with rule 'make-build'", result.stdout)
+        with tarfile.open(self.root / "out.tgz") as archive:
+            self.assertEqual(
+                archive.extractfile("apps/calendar/packaged").read(), b"distribution"
+            )
+            self.assertNotIn("apps/calendar/Makefile", archive.getnames())
+        # A failed target must not use a tarball it produced before failing.
+        with (self.root / "apps/calendar/Makefile").open("a") as makefile:
+            makefile.write("\tfalse\n")
+        failed = subprocess.run(
+            ["bash", str(SCRIPT), "--only", "calendar",
+             "--make-target=calendar=build", "-o", "failed.tgz"],
+            cwd=self.root, env=self.env, text=True, capture_output=True,
+        )
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("packaging rule 'make-build' failed", failed.stderr)
+        self.assertFalse((self.root / "failed.tgz").exists())
+
     def test_dry_run_previews_all_methods_without_running_build_tools(self):
         (self.root / "apps/modern/.git").touch()
         (self.root / "apps/legacy/.git").mkdir()

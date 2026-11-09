@@ -34,6 +34,10 @@
 #       Example: --only ':server,calendar' --exclude ':no-server,testing'
 #   -k  keep going: skip failing apps instead of aborting
 #   -n  never run packaging rules, always use the heuristic
+#   --make-target APP=TARGET  override packaging with make TARGET for this app;
+#       repeat for multiple apps. Takes precedence over automatic detection
+#       and verbatim copying; -n still prevents rule execution.
+#       Example: --make-target collectives=build
 #   --dry-run  preview selection and actions without builds or file changes;
 #       make rules are detected from literal appstore targets without invoking
 #       make (included/generated rules may not be detected). Still queries occ
@@ -55,6 +59,17 @@ EXCLUDES=
 ONLY=
 ONLY_SET=0
 POSITIONAL_APPS=()
+declare -A MAKE_TARGETS=()
+
+add_make_target() {
+	local app=${1%%=*} target=${1#*=}
+	if [[ $1 != *=* || ! $app =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ \
+		|| ! $target =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]]; then
+		printf 'invalid make-target override: %s (expected APP=TARGET)\n' "$1" >&2
+		return 2
+	fi
+	MAKE_TARGETS[$app]=$target
+}
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
@@ -62,7 +77,7 @@ while [[ $# -gt 0 ]]; do
 			sed -n '2,/^$/ { /^#/ { s/^# \{0,1\}//; p; }; }' "$0"
 			exit 0
 			;;
-		-a|-o|-s|-x|--exclude|-i|--only)
+		-a|-o|-s|-x|--exclude|-i|--only|--make-target)
 			[[ $# -ge 2 ]] || { echo "missing argument for $1" >&2; exit 2; }
 			case $1 in
 				-a) APPS_DIR=$2 ;;
@@ -70,11 +85,13 @@ while [[ $# -gt 0 ]]; do
 				-s) STAGING=$2 ;;
 				-x|--exclude) EXCLUDES+=" $2" ;;
 				-i|--only) ONLY+=" $2"; ONLY_SET=1 ;;
+				--make-target) add_make_target "$2" ;;
 			esac
 			shift 2
 			;;
 		--exclude=*) EXCLUDES+=" ${1#*=}"; shift ;;
 		--only=*) ONLY+=" ${1#*=}"; ONLY_SET=1; shift ;;
+		--make-target=*) add_make_target "${1#*=}"; shift ;;
 		-c) CONTINUE=1; shift ;;
 		-k) KEEP_GOING=1; shift ;;
 		-n) NO_RULES=1; shift ;;
@@ -154,7 +171,11 @@ trap 'exit 130' INT TERM
 
 # Prints the name of a packaging rule for the app, or nothing.
 detect_rule() {
-	local dir=$1
+	local dir=$1 app=${1##*/}
+	if [[ -n ${MAKE_TARGETS[$app]:-} ]]; then
+		printf 'make-%s\n' "${MAKE_TARGETS[$app]}"
+		return 0
+	fi
 	if [[ -f $dir/Makefile ]]; then
 		if [[ $DRY_RUN -eq 1 ]]; then
 			# Even make -n can execute recursive recipes and $(shell ...).
@@ -178,8 +199,16 @@ package_with_rule() {
 	marker=$(mktemp)
 	setTitle "$app ($rule)"
 	case $rule in
-		make-appstore) (cd "$dir" && make appstore) ;;
-		krankerl) (cd "$dir" && krankerl package) ;;
+		make-*) (cd "$dir" && make "${rule#make-}") || {
+			rm -f "$marker"
+			die "$app" "packaging rule '$rule' failed"
+			return 1
+		} ;;
+		krankerl) (cd "$dir" && krankerl package) || {
+			rm -f "$marker"
+			die "$app" "packaging rule '$rule' failed"
+			return 1
+		} ;;
 	esac
 	# Pick the newest tarball produced by the rule (location differs between apps).
 	tarball=$(find "$dir/build" -type f \( -name '*.tar.gz' -o -name '*.tgz' \) \
@@ -232,7 +261,7 @@ package_heuristic() {
 process_app() {
 	local app=$1 dir=$APPS_DIR/$1 dest=$2 rule
 
-	if [[ ! -e $dir/.git ]]; then
+	if [[ ! -e $dir/.git && -z ${MAKE_TARGETS[$app]:-} ]]; then
 		if [[ $DRY_RUN -eq 1 ]]; then
 			log "$app" "would copy verbatim (no .git)"
 			return 0
