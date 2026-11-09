@@ -16,7 +16,11 @@
 #                     [-x EXCLUDES] [-i ONLY] [-k] [-n] [--dry-run] [-h] [APP ...]
 #   -h, --help  display this header and exit
 #   -a  apps directory (default: ./apps)
-#   -o  output archive (default: ./apps-YYYYmmdd-HHMMSS.tar.gz)
+#   -o  output archive (default: ./apps-YYYYmmdd-HHMMSS[-SELECTION].tar.gz)
+#       Selection suffix: only-<union>, apps-<positional union>, with-server,
+#       exclude-<union>, in that order. Unions use +, are sorted/deduplicated,
+#       and normalize class aliases. The implicit :server filter is omitted.
+#       An empty --only list is labelled only-none. Explicit -o is unchanged.
 #   -s  staging directory, kept after the run (default: temporary, removed)
 #   -c  continue: skip apps already present in the staging directory
 #   -x, --exclude LIST  comma/space separated app names or classes to exclude
@@ -54,7 +58,7 @@
 set -euo pipefail
 
 APPS_DIR=./apps
-OUTPUT=./apps-$(date +%Y%m%d-%H%M%S).tar.gz
+OUTPUT=
 KEEP_GOING=0
 NO_RULES=0
 DRY_RUN=0
@@ -109,7 +113,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 APPS_DIR=$(realpath "$APPS_DIR")
-OUTPUT=$(realpath -m "$OUTPUT")
+if [[ -n $OUTPUT ]]; then
+	OUTPUT=$(realpath -m "$OUTPUT")
+fi
 
 if [[ -z $STAGING ]]; then
 	[[ $CONTINUE -eq 0 ]] || { echo "-c requires -s STAGING_DIR" >&2; exit 2; }
@@ -403,6 +409,38 @@ for app in "${CANDIDATES[@]}"; do
 	fi
 	APPS+=("$app")
 done
+
+selection_union() {
+	local token
+	[[ $# -gt 0 ]] || return 0
+	for token in "$@"; do
+		case $token in
+			:no-disabled) printf '%s\n' enabled ;;
+			:no-enabled) printf '%s\n' disabled ;;
+			*) printf '%s\n' "${token#:}" ;;
+		esac
+	done | LC_ALL=C sort -u | paste -sd '+' -
+}
+
+if [[ -z $OUTPUT ]]; then
+	SUFFIX=
+	if [[ $ONLY_SET -eq 1 ]]; then
+		UNION=$(selection_union "${ONLY_TOKENS[@]}")
+		SUFFIX+="-only-${UNION:-none}"
+	fi
+	if [[ ${#POSITIONAL_APPS[@]} -gt 0 ]]; then
+		SUFFIX+="-apps-$(selection_union "${POSITIONAL_APPS[@]}")"
+	fi
+	[[ $EXCLUDE_SERVER -eq 1 ]] || SUFFIX+="-with-server"
+	NAME_EXCLUDES=()
+	for token in "${EXCLUDE_TOKENS[@]}"; do
+		[[ $token == :no-server ]] || NAME_EXCLUDES+=("$token")
+	done
+	if [[ ${#NAME_EXCLUDES[@]} -gt 0 ]]; then
+		SUFFIX+="-exclude-$(selection_union "${NAME_EXCLUDES[@]}")"
+	fi
+	OUTPUT=$(realpath -m "./apps-$(date +%Y%m%d-%H%M%S)$SUFFIX.tar.gz")
+fi
 
 FAILED=()
 ARCHIVE_APPS=()
