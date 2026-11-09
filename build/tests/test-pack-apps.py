@@ -26,6 +26,8 @@ class SelectionTest(unittest.TestCase):
             directory.mkdir(parents=True)
             (directory / "info.xml").touch()
         (self.root / "apps/modern/Makefile").write_text("appstore:\n\t@true\n")
+        self.git("init", "--quiet")
+        self.git("add", "apps/files")
         # Test selection separately from real instance initialization.
         bindir = self.root / "bin"
         bindir.mkdir()
@@ -41,6 +43,45 @@ class SelectionTest(unittest.TestCase):
             os.environ,
             PATH=f"{bindir}:{os.environ['PATH']}",
             APP_STATUS=json.dumps({"disabled": {"disabled": "1.0"}}),
+        )
+
+    def git(self, *args):
+        return subprocess.run(
+            ["git", *args], cwd=self.root, check=True, capture_output=True, text=True, input=""
+        ).stdout.strip()
+
+    def test_server_uses_current_index_and_excludes_submodules(self):
+        self.git("add", "apps/calendar")
+        self.assertEqual(self.run_pack("-i", ":server", "-x", ":no-server"), {"files", "calendar"})
+        self.git("rm", "--cached", "-r", "apps/files")
+        self.assertEqual(self.run_pack("-i", ":server", "-x", ":no-server"), {"calendar"})
+        # A gitlink is not a direct app, even though its working folder exists.
+        empty_tree = self.git("hash-object", "-t", "tree", "--stdin")
+        commit = self.git(
+            "-c", "user.name=Test", "-c", "user.email=test@example.com",
+            "commit-tree", empty_tree, "-m", "Submodule fixture",
+        )
+        self.git("update-index", "--add", "--cacheinfo", f"160000,{commit},apps/modern")
+        self.assertEqual(self.run_pack("-i", ":server", "-x", ":no-server"), {"calendar"})
+        self.assertEqual(
+            self.run_pack("-i", ":no-server"), {"files", "disabled", "legacy", "modern"}
+        )
+
+    def test_server_query_failure_is_explicit(self):
+        git = self.root / "bin/git"
+        git.write_text("#!/bin/sh\nexit 1\n")
+        git.chmod(0o755)
+        self.assertIn("cannot determine server apps", self.run_pack(success=False).stderr)
+
+    def test_server_uses_selected_apps_directory(self):
+        appinfo = self.root / "custom-apps/custom/appinfo"
+        appinfo.mkdir(parents=True)
+        (appinfo / "info.xml").touch()
+        self.git("add", "custom-apps")
+        self.assertEqual(self.run_pack("-a", "custom-apps"), set())
+        self.assertEqual(
+            self.run_pack("-a", "custom-apps", "-i", ":server", "-x", ":no-server"),
+            {"custom"},
         )
 
     def run_pack(self, *args, success=True):
