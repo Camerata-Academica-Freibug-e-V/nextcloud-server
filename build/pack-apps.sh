@@ -13,17 +13,26 @@
 #    (test/, tests/, phpunit/, unit/) and (for JS apps) src/ are dropped
 #
 # Usage: pack-apps.sh [-a APPS_DIR] [-o OUTPUT.tar.gz] [-s STAGING_DIR] [-c]
-#                     [-x EXCLUDES] [-k] [-n] [APP ...]
+#                     [-x EXCLUDES] [-i ONLY] [-k] [-n] [APP ...]
 #   -a  apps directory (default: ./apps)
 #   -o  output archive (default: ./apps-YYYYmmdd-HHMMSS.tar.gz)
 #   -s  staging directory, kept after the run (default: temporary, removed)
 #   -c  continue: skip apps already present in the staging directory
-#   -x  comma or space separated apps to skip (default: the apps shipped in
-#       apps/ of the server repository, see DEFAULT_EXCLUDES);
-#       pass -x '' to skip nothing
+#   -x, --exclude LIST  comma/space separated app names or classes to exclude
+#       (adds to the default :server exclusion; :no-server cancels it)
+#   -i, --only LIST     select only these app names or classes (union)
+#       :server     bundled apps listed in SERVER_APPS
+#       :no-server  cancel bundled-app exclusion; in --only, non-bundled apps
+#       :disabled   apps reported disabled by php ./occ app:list --output=json
+#       :legacy     apps without an apparent make appstore/krankerl rule
+#       Class matches within a list are combined with app names by union.
+#       :disabled requires php and jq and queries occ in the current folder.
+#       :legacy checks rule availability even when -n disables rule execution.
+#       Exclusions always win, including for positional APP arguments.
+#       Example: --only ':server,calendar' --exclude ':no-server,testing'
 #   -k  keep going: skip failing apps instead of aborting
 #   -n  never run packaging rules, always use the heuristic
-#   APP restrict to the given app ids; the exclude list is not applied
+#   APP further restrict to the given app ids
 
 set -euo pipefail
 
@@ -34,7 +43,7 @@ NO_RULES=0
 STAGING=
 TMP_STAGING=
 CONTINUE=0
-DEFAULT_EXCLUDES="
+SERVER_APPS="
 	admin_audit appstore cloud_federation_api comments contactsinteraction
 	dashboard dav encryption federatedfilesharing federation files
 	files_external files_reminders files_sharing files_trashbin files_versions
@@ -43,21 +52,34 @@ DEFAULT_EXCLUDES="
 	updatenotification user_ldap user_status weather_status
 	webhook_listeners workflowengine
 "
-EXCLUDES=$DEFAULT_EXCLUDES
+EXCLUDES=
+ONLY=
+ONLY_SET=0
+POSITIONAL_APPS=()
 
-while getopts "a:o:s:cx:kn" opt; do
-	case $opt in
-		a) APPS_DIR=$OPTARG ;;
-		o) OUTPUT=$OPTARG ;;
-		s) STAGING=$OPTARG ;;
-		c) CONTINUE=1 ;;
-		x) EXCLUDES=$OPTARG ;;
-		k) KEEP_GOING=1 ;;
-		n) NO_RULES=1 ;;
-		*) sed -n '/^# Usage/,/^$/p' "$0"; exit 2 ;;
+while [[ $# -gt 0 ]]; do
+	case $1 in
+		-a|-o|-s|-x|--exclude|-i|--only)
+			[[ $# -ge 2 ]] || { echo "missing argument for $1" >&2; exit 2; }
+			case $1 in
+				-a) APPS_DIR=$2 ;;
+				-o) OUTPUT=$2 ;;
+				-s) STAGING=$2 ;;
+				-x|--exclude) EXCLUDES+=" $2" ;;
+				-i|--only) ONLY+=" $2"; ONLY_SET=1 ;;
+			esac
+			shift 2
+			;;
+		--exclude=*) EXCLUDES+=" ${1#*=}"; shift ;;
+		--only=*) ONLY+=" ${1#*=}"; ONLY_SET=1; shift ;;
+		-c) CONTINUE=1; shift ;;
+		-k) KEEP_GOING=1; shift ;;
+		-n) NO_RULES=1; shift ;;
+		--) shift; POSITIONAL_APPS+=("$@"); break ;;
+		-*) echo "unknown option: $1" >&2; exit 2 ;;
+		*) POSITIONAL_APPS+=("$1"); shift ;;
 	esac
 done
-shift $((OPTIND - 1))
 
 APPS_DIR=$(realpath "$APPS_DIR")
 OUTPUT=$(realpath -m "$OUTPUT")
@@ -78,9 +100,6 @@ fi
 PARTIAL=$STAGING/.partial
 rm -rf "$PARTIAL"
 mkdir -p "$STAGING/apps" "$PARTIAL"
-
-declare -A EXCLUDED=()
-for app in ${EXCLUDES//,/ }; do EXCLUDED[$app]=1; done
 
 log() { printf '[%s] %s\n' "$1" "$2" >&2; }
 die() { log "$1" "ERROR: $2"; return 1; }
@@ -128,7 +147,6 @@ trap 'exit 130' INT TERM
 # Prints the name of a packaging rule for the app, or nothing.
 detect_rule() {
 	local dir=$1
-	[[ $NO_RULES -eq 1 ]] && return 0
 	if [[ -f $dir/Makefile ]] && make -C "$dir" -n appstore >/dev/null 2>&1; then
 		echo make-appstore
 	elif [[ -f $dir/krankerl.toml ]] && command -v krankerl >/dev/null; then
@@ -202,8 +220,12 @@ process_app() {
 		return 0
 	fi
 
-	rule=$(detect_rule "$dir")
-	if [[ -n $rule ]]; then
+	if [[ -n ${RULES[$app]+present} ]]; then
+		rule=${RULES[$app]}
+	else
+		rule=$(detect_rule "$dir")
+	fi
+	if [[ -n $rule && $NO_RULES -eq 0 ]]; then
 		log "$app" "packaging with rule '$rule'"
 		package_with_rule "$app" "$dir" "$rule" "$dest"
 	else
@@ -212,20 +234,98 @@ process_app() {
 	fi
 }
 
-if [[ $# -gt 0 ]]; then
-	APPS=("$@")
-else
-	APPS=()
+declare -A SERVER=() DISABLED=() RULES=()
+for app in $SERVER_APPS; do SERVER[$app]=1; done
+
+EXCLUDES=${EXCLUDES//,/ }
+EXCLUDES=${EXCLUDES//$'\n'/ }
+ONLY=${ONLY//,/ }
+ONLY=${ONLY//$'\n'/ }
+read -r -a EXCLUDE_TOKENS <<< "$EXCLUDES"
+read -r -a ONLY_TOKENS <<< "$ONLY"
+EXCLUDE_SERVER=1
+NEED_DISABLED=0
+NEED_LEGACY=0
+for token in "${EXCLUDE_TOKENS[@]}" "${ONLY_TOKENS[@]}"; do
+	case $token in
+		:server|:no-server) ;;
+		:disabled) NEED_DISABLED=1 ;;
+		:legacy) NEED_LEGACY=1 ;;
+		:*) die selection "unknown class: $token"; exit 2 ;;
+		*) [[ $token =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]] \
+			|| { die selection "invalid app name: $token"; exit 2; } ;;
+	esac
+done
+for token in "${EXCLUDE_TOKENS[@]}"; do
+	[[ $token != :no-server ]] || EXCLUDE_SERVER=0
+done
+
+if [[ $NEED_DISABLED -eq 1 ]]; then
+	if ! APP_STATUS=$(php ./occ app:list --output=json); then
+		die selection "cannot query disabled apps using php ./occ app:list --output=json"
+		exit 1
+	fi
+	if ! DISABLED_IDS=$(jq -er '
+		.disabled | if type == "object" then keys | join("\n")
+		elif . == [] then "" else error("invalid disabled app list") end
+	' <<< "$APP_STATUS"); then
+		die selection "invalid app:list JSON (jq is required)"
+		exit 1
+	fi
 	while IFS= read -r app; do
-		if [[ -n ${EXCLUDED[$app]:-} ]]; then
-			log "$app" "excluded"
-		else
-			APPS+=("$app")
-		fi
-	done < <(find "$APPS_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+		[[ -z $app ]] || DISABLED[$app]=1
+	done <<< "$DISABLED_IDS"
 fi
 
+matches() {
+	local app=$1 token
+	shift
+	for token in "$@"; do
+		case $token in
+			:server) [[ -n ${SERVER[$app]:-} ]] && return 0 ;;
+			:no-server) [[ -z ${SERVER[$app]:-} ]] && return 0 ;;
+			:disabled) [[ -n ${DISABLED[$app]:-} ]] && return 0 ;;
+			:legacy) [[ -z ${RULES[$app]:-} ]] && return 0 ;;
+			*) [[ $token == "$app" ]] && return 0 ;;
+		esac
+	done
+	return 1
+}
+
+# :no-server is a directive in exclusions, not a class to remove.
+FILTER_EXCLUDES=()
+for token in "${EXCLUDE_TOKENS[@]}"; do
+	[[ $token == :no-server ]] || FILTER_EXCLUDES+=("$token")
+done
+[[ $EXCLUDE_SERVER -eq 0 ]] || FILTER_EXCLUDES+=(:server)
+
+if [[ ${#POSITIONAL_APPS[@]} -gt 0 ]]; then
+	CANDIDATES=("${POSITIONAL_APPS[@]}")
+else
+	mapfile -t CANDIDATES < <(find "$APPS_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+fi
+APPS=()
+declare -A SEEN=()
+for app in "${CANDIDATES[@]}"; do
+	[[ $app =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]] \
+		|| { die selection "invalid app name: $app"; exit 2; }
+	[[ -z ${SEEN[$app]:-} ]] || continue
+	SEEN[$app]=1
+	if [[ $NEED_LEGACY -eq 1 ]]; then
+		RULES[$app]=$(detect_rule "$APPS_DIR/$app")
+	fi
+	if [[ $ONLY_SET -eq 1 ]] && ! matches "$app" "${ONLY_TOKENS[@]}"; then
+		continue
+	fi
+	if matches "$app" "${FILTER_EXCLUDES[@]}"; then
+		log "$app" "excluded"
+		continue
+	fi
+	APPS+=("$app")
+done
+
 FAILED=()
+ARCHIVE_APPS=()
 for app in "${APPS[@]}"; do
 	setTitle "$app"
 	if [[ ! -f $APPS_DIR/$app/appinfo/info.xml ]]; then
@@ -235,12 +335,14 @@ for app in "${APPS[@]}"; do
 	if [[ -d $STAGING/apps/$app ]]; then
 		if [[ $CONTINUE -eq 1 ]]; then
 			log "$app" "already staged, skipping"
+			ARCHIVE_APPS+=("apps/$app")
 			continue
 		fi
 		rm -rf "${STAGING:?}/apps/$app"
 	fi
 	if process_app "$app" "$PARTIAL/$app"; then
 		mv "$PARTIAL/$app" "$STAGING/apps/$app"
+		ARCHIVE_APPS+=("apps/$app")
 	else
 		rm -rf "${PARTIAL:?}/$app"
 		[[ $KEEP_GOING -eq 1 ]] || exit 1
@@ -250,7 +352,7 @@ done
 rmdir "$PARTIAL"
 
 setTitle "writing $(basename "$OUTPUT")"
-tar -czf "$OUTPUT" -C "$STAGING" apps
+tar -czf "$OUTPUT" -C "$STAGING" --files-from /dev/null -- "${ARCHIVE_APPS[@]}"
 log pack "wrote $OUTPUT"
 if [[ ${#FAILED[@]} -gt 0 ]]; then
 	log pack "skipped failing apps: ${FAILED[*]}"
