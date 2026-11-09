@@ -18,8 +18,8 @@
 #   -o  output archive (default: ./apps-YYYYmmdd-HHMMSS.tar.gz)
 #   -s  staging directory, kept after the run (default: temporary, removed)
 #   -c  continue: skip apps already present in the staging directory
-#   -x  comma or space separated apps to skip (default: the apps tracked in
-#       the git repository containing APPS_DIR, i.e. the shipped apps);
+#   -x  comma or space separated apps to skip (default: the apps shipped in
+#       apps/ of the server repository, see DEFAULT_EXCLUDES);
 #       pass -x '' to skip nothing
 #   -k  keep going: skip failing apps instead of aborting
 #   -n  never run packaging rules, always use the heuristic
@@ -33,8 +33,16 @@ KEEP_GOING=0
 NO_RULES=0
 STAGING=
 CONTINUE=0
-EXCLUDES=
-EXCLUDES_SET=0
+DEFAULT_EXCLUDES="
+	admin_audit appstore cloud_federation_api comments contactsinteraction
+	dashboard dav encryption federatedfilesharing federation files
+	files_external files_reminders files_sharing files_trashbin files_versions
+	lookup_server_connector oauth2 profile provisioning_api settings
+	sharebymail sharing systemtags testing theming twofactor_backupcodes
+	updatenotification user_ldap user_status weather_status
+	webhook_listeners workflowengine
+"
+EXCLUDES=$DEFAULT_EXCLUDES
 
 while getopts "a:o:s:cx:kn" opt; do
 	case $opt in
@@ -42,7 +50,7 @@ while getopts "a:o:s:cx:kn" opt; do
 		o) OUTPUT=$OPTARG ;;
 		s) STAGING=$OPTARG ;;
 		c) CONTINUE=1 ;;
-		x) EXCLUDES=$OPTARG; EXCLUDES_SET=1 ;;
+		x) EXCLUDES=$OPTARG ;;
 		k) KEEP_GOING=1 ;;
 		n) NO_RULES=1 ;;
 		*) sed -n '/^# Usage/,/^$/p' "$0"; exit 2 ;;
@@ -70,9 +78,6 @@ PARTIAL=$STAGING/.partial
 rm -rf "$PARTIAL"
 mkdir -p "$STAGING/apps" "$PARTIAL"
 
-if [[ $EXCLUDES_SET -eq 0 ]]; then
-	EXCLUDES=$(git -C "$APPS_DIR" ls-tree -d --name-only HEAD 2>/dev/null || true)
-fi
 declare -A EXCLUDED=()
 for app in ${EXCLUDES//,/ }; do EXCLUDED[$app]=1; done
 
