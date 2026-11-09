@@ -46,6 +46,11 @@
 #       repeat for multiple apps. Takes precedence over automatic detection
 #       and verbatim copying; -n still prevents rule execution.
 #       Example: --make-target collectives=build
+#   --build-command APP=COMMAND  run a trusted shell command in the app folder
+#       with bash -e -o pipefail -c; must produce an app archive below build/.
+#       Repeat for multiple apps; cannot combine with --make-target for the
+#       same app. Counts as :no-legacy; --dry-run prints it, -n suppresses it.
+#       Example: --build-command 'context_chat=make --old-file=clean appstore'
 #   --dry-run  preview selection and actions without builds or file changes;
 #       make rules are detected from literal appstore targets and simple
 #       variable-based includes without invoking make (generated rules and
@@ -73,6 +78,7 @@ ONLY=
 ONLY_SET=0
 POSITIONAL_APPS=()
 declare -A MAKE_TARGETS=()
+declare -A BUILD_COMMANDS=()
 
 add_make_target() {
 	local app=${1%%=*} target=${1#*=}
@@ -81,7 +87,25 @@ add_make_target() {
 		printf 'invalid make-target override: %s (expected APP=TARGET)\n' "$1" >&2
 		return 2
 	fi
+	if [[ -n ${BUILD_COMMANDS[$app]:-} ]]; then
+		printf 'conflicting build overrides for app: %s\n' "$app" >&2
+		return 2
+	fi
 	MAKE_TARGETS[$app]=$target
+}
+
+add_build_command() {
+	local app=${1%%=*} command=${1#*=}
+	if [[ $1 != *=* || ! $app =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ \
+		|| -z ${command//[[:space:]]/} ]]; then
+		printf 'invalid build-command override: %s (expected APP=COMMAND)\n' "$1" >&2
+		return 2
+	fi
+	if [[ -n ${MAKE_TARGETS[$app]:-} ]]; then
+		printf 'conflicting build overrides for app: %s\n' "$app" >&2
+		return 2
+	fi
+	BUILD_COMMANDS[$app]=$command
 }
 
 while [[ $# -gt 0 ]]; do
@@ -90,7 +114,7 @@ while [[ $# -gt 0 ]]; do
 			sed -n '2,/^$/ { /^#/ { s/^# \{0,1\}//; p; }; }' "$0"
 			exit 0
 			;;
-		-a|-o|-s|-x|--exclude|-i|--only|--make-target)
+		-a|-o|-s|-x|--exclude|-i|--only|--make-target|--build-command)
 			[[ $# -ge 2 ]] || { echo "missing argument for $1" >&2; exit 2; }
 			case $1 in
 				-a) APPS_DIR=$2 ;;
@@ -99,12 +123,14 @@ while [[ $# -gt 0 ]]; do
 				-x|--exclude) EXCLUDES+=" $2" ;;
 				-i|--only) ONLY+=" $2"; ONLY_SET=1 ;;
 				--make-target) add_make_target "$2" ;;
+				--build-command) add_build_command "$2" ;;
 			esac
 			shift 2
 			;;
 		--exclude=*) EXCLUDES+=" ${1#*=}"; shift ;;
 		--only=*) ONLY+=" ${1#*=}"; ONLY_SET=1; shift ;;
 		--make-target=*) add_make_target "${1#*=}"; shift ;;
+		--build-command=*) add_build_command "${1#*=}"; shift ;;
 		-c) CONTINUE=1; shift ;;
 		-k) KEEP_GOING=1; shift ;;
 		-n) NO_RULES=1; shift ;;
@@ -188,6 +214,10 @@ trap 'exit 130' INT TERM
 # Prints the name of a packaging rule for the app, or nothing.
 detect_rule() {
 	local dir=$1 app=${1##*/}
+	if [[ -n ${BUILD_COMMANDS[$app]:-} ]]; then
+		echo custom-command
+		return 0
+	fi
 	if [[ -n ${MAKE_TARGETS[$app]:-} ]]; then
 		printf 'make-%s\n' "${MAKE_TARGETS[$app]}"
 		return 0
@@ -214,6 +244,11 @@ package_with_rule() {
 	marker=$(mktemp)
 	setTitle "$app ($rule)"
 	case $rule in
+		custom-command) (cd "$dir" && bash -e -o pipefail -c "${BUILD_COMMANDS[$app]}") || {
+			rm -f "$marker"
+			die "$app" "custom build command failed"
+			return 1
+		} ;;
 		make-*) (cd "$dir" && make "${rule#make-}") || {
 			rm -f "$marker"
 			die "$app" "packaging rule '$rule' failed"
@@ -276,7 +311,7 @@ package_heuristic() {
 process_app() {
 	local app=$1 dir=$APPS_DIR/$1 dest=$2 rule
 
-	if [[ ! -e $dir/.git && -z ${MAKE_TARGETS[$app]:-} ]]; then
+	if [[ ! -e $dir/.git && -z ${MAKE_TARGETS[$app]:-} && -z ${BUILD_COMMANDS[$app]:-} ]]; then
 		if [[ $DRY_RUN -eq 1 ]]; then
 			log "$app" "would copy verbatim (no .git)"
 			return 0
@@ -292,6 +327,13 @@ process_app() {
 		rule=$(detect_rule "$dir")
 	fi
 	if [[ -n $rule && $NO_RULES -eq 0 ]]; then
+		if [[ $rule == custom-command ]]; then
+			if [[ $DRY_RUN -eq 1 ]]; then
+				log "$app" "would run build command: ${BUILD_COMMANDS[$app]}"
+				return 0
+			fi
+			log "$app" "running build command: ${BUILD_COMMANDS[$app]}"
+		fi
 		if [[ $DRY_RUN -eq 1 ]]; then
 			log "$app" "would package with rule '$rule'"
 			return 0

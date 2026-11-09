@@ -384,6 +384,64 @@ class SelectionTest(unittest.TestCase):
         (app / "nested.mk").write_text("appstore:\n\t@true\n")
         self.assertIn("[calendar] would", self.run_dry("--only", ":no-legacy"))
 
+    def test_custom_build_command_selection_and_validation(self):
+        output = self.run_dry(
+            "--build-command", "calendar=printf 'a=b' && touch must-not-run",
+            "--build-command=legacy=make dist", "--only", ":no-legacy",
+        )
+        self.assertIn("[calendar] would run build command: printf 'a=b'", output)
+        self.assertIn("[legacy] would run build command: make dist", output)
+        self.assertNotIn(
+            "[calendar] would", self.run_dry(
+                "--build-command", "calendar=true", "--only", ":legacy"
+            )
+        )
+        self.assertIn(
+            "[calendar] would use heuristic cleanup",
+            self.run_dry("-n", "--build-command", "calendar=true", "-i", "calendar"),
+        )
+        for value in ("calendar", "=true", "calendar=", "calendar=  ", "../app=true"):
+            with self.subTest(value=value):
+                self.run_dry("--build-command", value, success=False)
+        for args in (
+            ("--build-command", "calendar=true", "--make-target", "calendar=build"),
+            ("--make-target", "calendar=build", "--build-command", "calendar=true"),
+        ):
+            self.assertIn("conflicting", self.run_dry(*args, success=False))
+        self.run_dry("--build-command", success=False)
+
+    def test_custom_build_command_execution_and_failures(self):
+        command = (
+            'test "$SHARP_IGNORE_GLOBAL_LIBVIPS" = 1; '
+            'test -f appinfo/info.xml; '
+            'mkdir -p build/release/calendar/appinfo; '
+            'cp appinfo/info.xml build/release/calendar/appinfo/; '
+            'printf "custom=archive" > build/release/calendar/custom; '
+            'tar -czf build/release/calendar.tgz -C build/release calendar'
+        )
+        result = subprocess.run(
+            ["bash", str(SCRIPT), "-i", "calendar", "--build-command",
+             f"calendar={command}", "-o", "custom.tgz"],
+            cwd=self.root, env=self.env, text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        with tarfile.open(self.root / "custom.tgz") as archive:
+            self.assertEqual(
+                archive.extractfile("apps/calendar/custom").read(), b"custom=archive"
+            )
+        for failure in ("false; touch must-not-run", "false | true; touch must-not-run",
+                        command + "; false"):
+            with self.subTest(failure=failure):
+                result = subprocess.run(
+                    ["bash", str(SCRIPT), "-i", "calendar", "--build-command",
+                     f"calendar={failure}", "-o", "failed.tgz"],
+                    cwd=self.root, env=self.env, text=True, capture_output=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("custom build command failed", result.stderr)
+                self.assertFalse((self.root / "apps/calendar/must-not-run").exists())
+                self.assertFalse((self.root / "failed.tgz").exists())
+
     def test_make_target_override_creates_distribution_archive(self):
         (self.root / "apps/calendar/Makefile").write_text(
             ".PHONY: appstore build\n"
