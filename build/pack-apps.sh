@@ -39,6 +39,7 @@
 #       make (included/generated rules may not be detected). Still queries occ
 #       if :disabled is used. Does not validate built assets or build success.
 #   APP further restrict to the given app ids
+#   Progress and dry-run plans go to stdout; warnings and errors go to stderr.
 
 set -euo pipefail
 
@@ -108,8 +109,8 @@ if [[ $DRY_RUN -eq 0 ]]; then
 	mkdir -p "$STAGING/apps" "$PARTIAL"
 fi
 
-log() { printf '[%s] %s\n' "$1" "$2" >&2; }
-die() { log "$1" "ERROR: $2"; return 1; }
+log() { printf '[%s] %s\n' "$1" "$2"; }
+die() { log "$1" "ERROR: $2" >&2; return 1; }
 
 # Sets the terminal title, if stderr is a terminal. Inside screen/tmux the
 # window name is set as well; otherwise terminfo tsl/fsl are preferred over
@@ -177,8 +178,8 @@ package_with_rule() {
 	marker=$(mktemp)
 	setTitle "$app ($rule)"
 	case $rule in
-		make-appstore) (cd "$dir" && make appstore) >&2 ;;
-		krankerl) (cd "$dir" && krankerl package) >&2 ;;
+		make-appstore) (cd "$dir" && make appstore) ;;
+		krankerl) (cd "$dir" && krankerl package) ;;
 	esac
 	# Pick the newest tarball produced by the rule (location differs between apps).
 	tarball=$(find "$dir/build" -type f \( -name '*.tar.gz' -o -name '*.tgz' \) \
@@ -403,6 +404,6 @@ setTitle "writing $(basename "$OUTPUT")"
 tar -czf "$OUTPUT" -C "$STAGING" --files-from /dev/null -- "${ARCHIVE_APPS[@]}"
 log pack "wrote $OUTPUT"
 if [[ ${#FAILED[@]} -gt 0 ]]; then
-	log pack "skipped failing apps: ${FAILED[*]}"
+	log pack "skipped failing apps: ${FAILED[*]}" >&2
 	exit 1
 fi
