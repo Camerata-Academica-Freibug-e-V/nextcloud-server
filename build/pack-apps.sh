@@ -13,7 +13,7 @@
 #    (test/, tests/, phpunit/, unit/) and (for JS apps) src/ are dropped
 #
 # Usage: pack-apps.sh [-a APPS_DIR] [-o OUTPUT.tar.gz] [-s STAGING_DIR] [-c]
-#                     [-x EXCLUDES] [-i ONLY] [-k] [-n] [APP ...]
+#                     [-x EXCLUDES] [-i ONLY] [-k] [-n] [--dry-run] [APP ...]
 #   -a  apps directory (default: ./apps)
 #   -o  output archive (default: ./apps-YYYYmmdd-HHMMSS.tar.gz)
 #   -s  staging directory, kept after the run (default: temporary, removed)
@@ -32,6 +32,10 @@
 #       Example: --only ':server,calendar' --exclude ':no-server,testing'
 #   -k  keep going: skip failing apps instead of aborting
 #   -n  never run packaging rules, always use the heuristic
+#   --dry-run  preview selection and actions without builds or file changes;
+#       make rules are detected from literal appstore targets without invoking
+#       make (included/generated rules may not be detected). Still queries occ
+#       if :disabled is used. Does not validate built assets or build success.
 #   APP further restrict to the given app ids
 
 set -euo pipefail
@@ -40,6 +44,7 @@ APPS_DIR=./apps
 OUTPUT=./apps-$(date +%Y%m%d-%H%M%S).tar.gz
 KEEP_GOING=0
 NO_RULES=0
+DRY_RUN=0
 STAGING=
 TMP_STAGING=
 CONTINUE=0
@@ -75,6 +80,7 @@ while [[ $# -gt 0 ]]; do
 		-c) CONTINUE=1; shift ;;
 		-k) KEEP_GOING=1; shift ;;
 		-n) NO_RULES=1; shift ;;
+		--dry-run) DRY_RUN=1; shift ;;
 		--) shift; POSITIONAL_APPS+=("$@"); break ;;
 		-*) echo "unknown option: $1" >&2; exit 2 ;;
 		*) POSITIONAL_APPS+=("$1"); shift ;;
@@ -86,8 +92,10 @@ OUTPUT=$(realpath -m "$OUTPUT")
 
 if [[ -z $STAGING ]]; then
 	[[ $CONTINUE -eq 0 ]] || { echo "-c requires -s STAGING_DIR" >&2; exit 2; }
-	STAGING=$(mktemp -d)
-	TMP_STAGING=1
+	if [[ $DRY_RUN -eq 0 ]]; then
+		STAGING=$(mktemp -d)
+		TMP_STAGING=1
+	fi
 else
 	STAGING=$(realpath -m "$STAGING")
 	if [[ $CONTINUE -eq 0 && -d $STAGING/apps ]] && [[ -n $(ls -A "$STAGING/apps") ]]; then
@@ -98,8 +106,10 @@ fi
 # Apps are built below .partial/ and moved to apps/ only when complete, so an
 # interrupted run never leaves a half-staged app that -c would skip.
 PARTIAL=$STAGING/.partial
-rm -rf "$PARTIAL"
-mkdir -p "$STAGING/apps" "$PARTIAL"
+if [[ $DRY_RUN -eq 0 ]]; then
+	rm -rf "$PARTIAL"
+	mkdir -p "$STAGING/apps" "$PARTIAL"
+fi
 
 log() { printf '[%s] %s\n' "$1" "$2" >&2; }
 die() { log "$1" "ERROR: $2"; return 1; }
@@ -147,9 +157,19 @@ trap 'exit 130' INT TERM
 # Prints the name of a packaging rule for the app, or nothing.
 detect_rule() {
 	local dir=$1
-	if [[ -f $dir/Makefile ]] && make -C "$dir" -n appstore >/dev/null 2>&1; then
-		echo make-appstore
-	elif [[ -f $dir/krankerl.toml ]] && command -v krankerl >/dev/null; then
+	if [[ -f $dir/Makefile ]]; then
+		if [[ $DRY_RUN -eq 1 ]]; then
+			# Even make -n can execute recursive recipes and $(shell ...).
+			if grep -qE '^[[:space:]]*appstore[[:space:]]*:' "$dir/Makefile"; then
+				echo make-appstore
+				return 0
+			fi
+		elif make -C "$dir" -n appstore >/dev/null 2>&1; then
+			echo make-appstore
+			return 0
+		fi
+	fi
+	if [[ -f $dir/krankerl.toml ]] && command -v krankerl >/dev/null; then
 		echo krankerl
 	fi
 }
@@ -215,6 +235,10 @@ process_app() {
 	local app=$1 dir=$APPS_DIR/$1 dest=$2 rule
 
 	if [[ ! -e $dir/.git ]]; then
+		if [[ $DRY_RUN -eq 1 ]]; then
+			log "$app" "would copy verbatim (no .git)"
+			return 0
+		fi
 		log "$app" "no .git, copying verbatim"
 		cp -a "$dir" "$dest"
 		return 0
@@ -226,9 +250,17 @@ process_app() {
 		rule=$(detect_rule "$dir")
 	fi
 	if [[ -n $rule && $NO_RULES -eq 0 ]]; then
+		if [[ $DRY_RUN -eq 1 ]]; then
+			log "$app" "would package with rule '$rule'"
+			return 0
+		fi
 		log "$app" "packaging with rule '$rule'"
 		package_with_rule "$app" "$dir" "$rule" "$dest"
 	else
+		if [[ $DRY_RUN -eq 1 ]]; then
+			log "$app" "would use heuristic cleanup"
+			return 0
+		fi
 		log "$app" "no packaging rule, using heuristic cleanup"
 		package_heuristic "$app" "$dir" "$dest"
 	fi
@@ -332,7 +364,7 @@ for app in "${APPS[@]}"; do
 		log "$app" "not an app, skipping"
 		continue
 	fi
-	if [[ -d $STAGING/apps/$app ]]; then
+	if [[ -n $STAGING && -d $STAGING/apps/$app ]]; then
 		if [[ $CONTINUE -eq 1 ]]; then
 			log "$app" "already staged, skipping"
 			ARCHIVE_APPS+=("apps/$app")
@@ -341,7 +373,9 @@ for app in "${APPS[@]}"; do
 		rm -rf "${STAGING:?}/apps/$app"
 	fi
 	if process_app "$app" "$PARTIAL/$app"; then
-		mv "$PARTIAL/$app" "$STAGING/apps/$app"
+		if [[ $DRY_RUN -eq 0 ]]; then
+			mv "$PARTIAL/$app" "$STAGING/apps/$app"
+		fi
 		ARCHIVE_APPS+=("apps/$app")
 	else
 		rm -rf "${PARTIAL:?}/$app"
@@ -349,6 +383,10 @@ for app in "${APPS[@]}"; do
 		FAILED+=("$app")
 	fi
 done
+if [[ $DRY_RUN -eq 1 ]]; then
+	log pack "would archive ${#ARCHIVE_APPS[@]} apps to $OUTPUT (dry run; nothing packaged)"
+	exit 0
+fi
 rmdir "$PARTIAL"
 
 setTitle "writing $(basename "$OUTPUT")"
