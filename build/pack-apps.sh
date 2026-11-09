@@ -13,7 +13,8 @@
 #    (test/, tests/, phpunit/, unit/) and (for JS apps) src/ are dropped
 #
 # Usage: pack-apps.sh [-a APPS_DIR] [-o OUTPUT.tar.gz] [-s STAGING_DIR] [-c]
-#                     [-x EXCLUDES] [-i ONLY] [-k] [-n] [--dry-run] [APP ...]
+#                     [-x EXCLUDES] [-i ONLY] [-k] [-n] [--dry-run] [-h] [APP ...]
+#   -h, --help  display this header and exit
 #   -a  apps directory (default: ./apps)
 #   -o  output archive (default: ./apps-YYYYmmdd-HHMMSS.tar.gz)
 #   -s  staging directory, kept after the run (default: temporary, removed)
@@ -56,6 +57,10 @@ POSITIONAL_APPS=()
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
+		-h|--help)
+			sed -n '2,/^$/ { /^#/ { s/^# \{0,1\}//; p; }; }' "$0"
+			exit 0
+			;;
 		-a|-o|-s|-x|--exclude|-i|--only)
 			[[ $# -ge 2 ]] || { echo "missing argument for $1" >&2; exit 2; }
 			case $1 in

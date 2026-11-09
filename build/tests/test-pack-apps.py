@@ -100,6 +100,23 @@ class SelectionTest(unittest.TestCase):
                 if name.startswith("apps/")
             }
 
+    def test_help_prints_header_without_comment_prefixes(self):
+        header = SCRIPT.read_text().split("\n\n", 1)[0].splitlines()[1:]
+        expected = "\n".join(
+            line[2:] if line.startswith("# ") else line[1:] for line in header
+        ) + "\n"
+        with tempfile.TemporaryDirectory() as directory:
+            for option in ("-h", "--help"):
+                with self.subTest(option=option):
+                    result = subprocess.run(
+                        ["bash", str(SCRIPT), option],
+                        cwd=directory, text=True, capture_output=True,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, expected)
+                    self.assertEqual(result.stderr, "")
+                    self.assertEqual(list(Path(directory).iterdir()), [])
+
     def test_default_and_server_override(self):
         self.assertEqual(
             self.run_pack(), {"calendar", "disabled", "legacy", "modern"}
