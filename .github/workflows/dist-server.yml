@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Branch, tag or commit to package (default: the selected branch)
+        description: 'Branch, tag or commit to package (default: the selected branch)'
         required: false
         type: string
       retention-days:
