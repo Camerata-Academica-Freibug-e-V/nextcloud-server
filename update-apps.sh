@@ -3,6 +3,11 @@
 # SPDX-FileCopyrightText: 2026 Claus-Justus Heine
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+# Run a Bash command instead of updating apps:
+# ./update-apps.sh --only "calendar contacts" --shell 'pwd; git status --short'
+# --shell honors --only and --exclude, and stops on command failure.
+# --exclude matches exact app names and applies after --only, regardless of order.
+
 export LC_ALL=C.UTF-8
 
 ALL_APPS="
@@ -59,7 +64,10 @@ RESET=false
 REBASE=false
 STATUS=false
 LIST=false
+SHELL_MODE=false
+SHELL_COMMAND=
 APPS="${ALL_APPS}"
+declare -A EXCLUDED_APPS
 
 declare -A BUILD_COMMANDS
 BUILD_COMMANDS=(
@@ -177,7 +185,7 @@ SUBREPO_APPS=(
 
 NCDIR=$(realpath .)
 
-VALID_ARGS=$(getopt -o bldre:o:s --long build,list,dev,only:,exclude:,rebase,status,push,reset,checkout -- "$@")
+VALID_ARGS=$(getopt -o bldre:o:s --long build,list,dev,only:,exclude:,rebase,status,push,reset,checkout,shell: -- "$@")
 # shellcheck disable=SC2181
 if [[ $? -ne 0 ]]; then
     exit 1;
@@ -216,7 +224,7 @@ while true; do
         ARG="$(echo "${!SUBREPO_APPS[*]}"|xargs -n1|sort|xargs)"
       fi
       for APP in $ARG; do
-          APPS=$(echo "$APPS"|grep -Fv "$APP")
+          EXCLUDED_APPS[$APP]=true
       done
       shift 2
       ;;
@@ -236,11 +244,26 @@ while true; do
       STATUS=true
       shift
       ;;
+    --shell)
+      SHELL_MODE=true
+      SHELL_COMMAND=$2
+      shift 2
+      ;;
     --) shift;
       break
       ;;
   esac
 done
+
+if [ "${#EXCLUDED_APPS[@]}" -gt 0 ]; then
+    SELECTED_APPS=()
+    for APP in $APPS; do
+        if [ "${EXCLUDED_APPS[$APP]}" != true ]; then
+            SELECTED_APPS+=("$APP")
+        fi
+    done
+    APPS="${SELECTED_APPS[*]}"
+fi
 
 declare -A ATTENTION
 
@@ -264,6 +287,16 @@ fi
 for APP in $APPS; do
     setTitle "$APP"
     cd "$NCDIR/apps/$APP" || exit 1
+    if $SHELL_MODE; then
+        bash -c -- "$SHELL_COMMAND" || {
+            RESULT=$?
+            echo "Shell command failed for app $APP (exit $RESULT)" >&2
+            exit "$RESULT"
+        }
+        setTitle
+        cd "$NCDIR" || exit 1
+        continue
+    fi
     if ! [ -e .git ]; then
         cd "$NCDIR" || exit 1
         continue
