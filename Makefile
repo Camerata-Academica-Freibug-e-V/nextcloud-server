@@ -86,6 +86,7 @@ SRCDIR := $(CURDIR)
 TOOLDIR := $(SRCDIR)/build
 WORKDIR := $(SRCDIR)/tmp
 DISTDIR := $(WORKDIR)/$(shell date +%Y-%m-%d)
+DISTPAR := 1
 
 OVERRIDE_CMDS := --build-command="richdocuments=krankerl package"
 
@@ -95,29 +96,29 @@ distribution-support:
 
 distribution: distribution-support
 	mkdir -p $(DISTDIR)
-	git checkout $(SRCDIR)/config/CAN_INSTALL || true
-# server package
-	$(TOOLDIR)/make-nextcloud-dist.sh $(SRCDIR) $(DISTDIR)
 # appstore apps
-	$(TOOLDIR)/pack-apps.sh -c \
+	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
 	--only :enabled \
 	--exclude :git \
 	-d $(DISTDIR) \
 	-s $(DISTDIR)/apps-no-git
 # git appstore apps
-	$(TOOLDIR)/pack-apps.sh -c \
+	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
 	--only :enabled \
 	--exclude :no-git \
 	-d $(DISTDIR) \
 	-s $(DISTDIR)/apps-git \
 	$(OVERRIDE_CMDS)
 # git legacy apps (no apparant appstore target)
-	$(TOOLDIR)/pack-apps.sh -c \
+	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
 	--only :enabled \
 	--exclude :no-git,:no-legacy \
 	-d $(DISTDIR) \
 	-s $(DISTDIR)/apps-git-legacy \
 	$(OVERRIDE_CMDS)
+# server package
+	git checkout $(SRCDIR)/config/CAN_INSTALL || true
+	$(TOOLDIR)/make-nextcloud-dist.sh $(SRCDIR) $(DISTDIR)
 
 distribution-clean:
 	rm -rf $(DISTDIR)
