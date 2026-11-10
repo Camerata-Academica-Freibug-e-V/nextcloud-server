@@ -50,7 +50,7 @@ done
 find . -type d -name node_modules -prune -exec rm -rf {} +
 find . -type d \( -name tests -o -name cypress -o -name .github \) -prune -exec rm -rf {} +
 rm -rf build
-find . \( -name '.git*' -o -name '*.map' -o -name 'package.json' -o -name 'package-lock.json' \
+find . \( -name '.git*' -o \( -name '*.map' ! -path './apps/settings/js/map-test.js.map' \) -o -name 'package.json' -o -name 'package-lock.json' \
 	-o -name 'composer.lock' \) -prune -exec rm -rf {} +
 
 # 8. Package and checksum
