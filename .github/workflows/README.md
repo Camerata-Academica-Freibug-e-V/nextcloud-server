@@ -14,6 +14,48 @@ the changed-files API; pushes compare against the pre-push commit, including
 multi-commit pushes. Manual dispatch runs the checks without path filtering.
 Superseded runs on the same branch are cancelled.
 
+Application filters select PHP, frontend, and browser inputs separately.
+Changing a workflow YAML file selects that workflow, not every application
+suite; changes to the reusable PHPUnit workflow also select its caller.
+PHP checks no longer match entire `tests/` directories, and frontend/browser
+checks no longer match all of `build/`.
+
+## Tooling checks
+
+The repository tooling workflow routes root/build Python and shell changes,
+root Python test changes, and `Makefile` changes to dedicated tests:
+
+| Changed tool | Dedicated tests |
+| --- | --- |
+| `build/pack-apps.sh`, `build/has-appstore-target.py` | `build/tests/test-pack-apps.py` |
+| `build/pack-support-app.py`, `Makefile` | `build/tests/test-pack-support-app.py` |
+| `build/generate-file-commits` | `tests/test_generate_file_commits.py` |
+| `update-apps.sh` | `tests/test_update_apps.py`, when present |
+| `build/integration/install-dependencies.py` | `build/integration/tests/test_install_dependencies.py` |
+| `build/run-tool-tests.py` | All available tooling tests |
+| Workflow YAML | `.github/tests/workflow-filters.test.mjs` |
+
+Changing a registered test also runs that test. Python and shell changes get
+syntax checks; tools without an available dedicated test produce an explicit
+CI notice rather than starting unrelated application suites. The Makefile
+tests cover `distribution-support`, not every target. Extend the mapping in
+`build/run-tool-tests.py` when adding dedicated tests.
+
+Direct consumers still run: `build/demi.sh` and `build/npm-post-build.sh`
+select the frontend build, `build/integration/run.sh` selects Behat, and the
+autoloader, Psalm-checker, and OpenAPI shell scripts select their own checkers.
+License checks and applicable CodeQL scans remain independent of test routing.
+The tooling workflow fails if its change detection fails. Manual dispatch
+runs all available tooling tests, including the real Composer HTTP fixtures.
+
+Run the same selection locally with Node 24+, Python 3, and Composer 2.11.1
+(Composer is needed for the dependency installer's HTTP fixtures):
+
+```sh
+python3 build/run-tool-tests.py --files-json '["build/pack-apps.sh"]'
+python3 build/run-tool-tests.py --all
+```
+
 ## Retained checks
 
 - PHP syntax, formatting, Rector, Psalm (including taint analysis), and OpenAPI.
