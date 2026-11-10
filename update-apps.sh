@@ -308,6 +308,10 @@ for APP in $APPS; do
     setTitle "$APP"
     cd "$NCDIR/apps/$APP" || exit 1
     if $SHELL_MODE; then
+        setTitle "$APP (running '$SHELL_COMMAND')"
+        echo
+        echo "*** $APP: running '$SHELL_COMMAND'"
+        echo
         bash -c -- "$SHELL_COMMAND" || {
             RESULT=$?
             echo "Shell command failed for app $APP (exit $RESULT)" >&2
