@@ -41,14 +41,11 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
-              - '.github/workflows/**'
+              - '.github/workflows/rector.yml'
               - '3rdparty/**'
-              - '**/lib/**'
-              - '**/tests/**'
-              - '**/vendor-bin/**'
               - '.php-cs-fixer.dist.php'
-              - 'composer.json'
-              - 'composer.lock'
+              - '**/composer.json'
+              - '**/composer.lock'
               - '**/*.php'
 
   strict:
