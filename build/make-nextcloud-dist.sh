@@ -55,6 +55,6 @@ find . \( -name '.git*' -o -name '*.map' -o -name 'package.json' -o -name 'packa
 
 # 8. Package and checksum
 cd "$WORK"
-tar -cjf "$OUT/$NAME.tar.bz2" nextcloud
-(cd "$OUT" && sha256sum "$NAME.tar.bz2" > "$NAME.tar.bz2.sha256")
-echo "Created $OUT/$NAME.tar.bz2"
+tar -cJf "$OUT/$NAME.tar.xz" nextcloud
+(cd "$OUT" && sha256sum "$NAME.tar.xz" > "$NAME.tar.xz.sha256")
+echo "Created $OUT/$NAME.tar.xz"

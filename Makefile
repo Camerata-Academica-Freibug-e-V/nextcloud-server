@@ -1,6 +1,6 @@
 SHELL = /bin/bash
 
-# SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
+# SPDX-FileCopyrightText: 2018, 2026 Nextcloud GmbH and Nextcloud contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 all: clean dev-setup build-js-production
 
@@ -81,3 +81,46 @@ doc:
 	find archive/user -name "*.html" -exec sed -i 's|href="/server/latest/user_manual|href="/core/doc/user|g' {} \; ; \
 	tar -czf ../../build/artifacts/doc/documentation-$(VERSION).tar.gz -C archive admin user
 	rm -rf tmp/documentation
+
+SRCDIR := $(CURDIR)
+TOOLDIR := $(SRCDIR)/build
+WORKDIR := $(SRCDIR)/tmp
+DISTDIR := $(WORKDIR)/$(shell date +%Y-%m-%d)
+DISTPAR := 1
+# Optional server tarball cache, verified against upstream SHA256 on each run.
+SUPPORT_CACHE ?= $(WORKDIR)
+
+OVERRIDE_CMDS := --build-command="richdocuments=krankerl package"
+
+.PHONY: distribution-support
+distribution-support:
+	python3 "$(TOOLDIR)/pack-support-app.py" "$(SRCDIR)" "$(DISTDIR)" $(if $(SUPPORT_CACHE),--use-cache "$(SUPPORT_CACHE)")
+
+distribution: distribution-support
+	mkdir -p $(DISTDIR)
+# appstore apps
+	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
+	--only :enabled \
+	--exclude :git \
+	-d $(DISTDIR) \
+	-s $(DISTDIR)/apps-no-git
+# git appstore apps
+	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
+	--only :enabled \
+	--exclude :no-git \
+	-d $(DISTDIR) \
+	-s $(DISTDIR)/apps-git \
+	$(OVERRIDE_CMDS)
+# git legacy apps (no apparant appstore target)
+	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
+	--only :enabled \
+	--exclude :no-git,:no-legacy \
+	-d $(DISTDIR) \
+	-s $(DISTDIR)/apps-git-legacy \
+	$(OVERRIDE_CMDS)
+# server package
+	git checkout $(SRCDIR)/config/CAN_INSTALL || true
+	$(TOOLDIR)/make-nextcloud-dist.sh $(SRCDIR) $(DISTDIR)
+
+distribution-clean:
+	rm -rf $(DISTDIR)
