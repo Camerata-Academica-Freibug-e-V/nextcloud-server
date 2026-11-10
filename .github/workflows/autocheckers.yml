@@ -4,26 +4,41 @@ name: Code checkers
 
 on:
   pull_request:
+    branches: [cjh-stable35]
+  push:
+    branches: [cjh-stable35]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: autocheckers-${{ github.head_ref || github.run_id }}
+  group: autocheckers-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
 
     outputs:
       src: ${{ steps.changes.outputs.src }}
 
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'push'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        if: github.event_name != 'workflow_dispatch'
         id: changes
         continue-on-error: true
         with:
+          base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
               - '.github/workflows/**'
@@ -35,7 +50,7 @@ jobs:
               - 'vendor-bin/**'
               - 'composer.json'
               - 'composer.lock'
-              - '**.php'
+              - '**/*.php'
               - build/autoloaderchecker.sh
 
   autoloader:
@@ -57,7 +72,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         timeout-minutes: 5
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           extensions: bz2, ctype, curl, dom, fileinfo, gd, iconv, intl, json, libxml, mbstring, openssl, pcntl, posix, session, simplexml, xmlreader, xmlwriter, zip, zlib, sqlite, pdo_sqlite
           coverage: none
           ini-file: development
@@ -86,7 +101,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         timeout-minutes: 5
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           extensions: bz2, ctype, curl, dom, fileinfo, gd, iconv, intl, json, libxml, mbstring, openssl, pcntl, posix, session, simplexml, xmlreader, xmlwriter, zip, zlib, sqlite, pdo_sqlite
           coverage: none
           ini-file: development
