@@ -87,12 +87,14 @@ TOOLDIR := $(SRCDIR)/build
 WORKDIR := $(SRCDIR)/tmp
 DISTDIR := $(WORKDIR)/$(shell date +%Y-%m-%d)
 DISTPAR := 1
+# Optional server tarball cache, verified against upstream SHA256 on each run.
+SUPPORT_CACHE ?=
 
 OVERRIDE_CMDS := --build-command="richdocuments=krankerl package"
 
 .PHONY: distribution-support
 distribution-support:
-	python3 "$(TOOLDIR)/pack-support-app.py" "$(SRCDIR)" "$(DISTDIR)"
+	python3 "$(TOOLDIR)/pack-support-app.py" "$(SRCDIR)" "$(DISTDIR)" $(if $(SUPPORT_CACHE),--use-cache "$(SUPPORT_CACHE)")
 
 distribution: distribution-support
 	mkdir -p $(DISTDIR)
