@@ -62,6 +62,119 @@ class UpdateAppsShellTest(unittest.TestCase):
         tracked.write_text("uncommitted change\n")
         return app, tracked
 
+    def test_status_omits_apps_without_attention_items(self):
+        app, tracked = self.make_reset_app()
+        result = self.run_script("--only", app, "--status")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("[activity]=", result.stdout)
+        self.assertEqual(tracked.read_text(), "uncommitted change\n")
+
+    def test_status_reports_tracking_issues(self):
+        app, tracked = self.make_reset_app()
+        cases = [
+            ("different-upstream", "does not match origin/stable35"),
+            ("no-upstream", "no valid upstream"),
+            ("missing-upstream", "no valid upstream"),
+            ("detached", "detached HEAD"),
+        ]
+        self.git(app, "push", "origin", "HEAD:other")
+        for case, expected in cases:
+            with self.subTest(case=case):
+                if case == "different-upstream":
+                    self.git(app, "branch", "--set-upstream-to=origin/other")
+                elif case == "no-upstream":
+                    self.git(app, "branch", "--unset-upstream")
+                elif case == "missing-upstream":
+                    self.git(app, "branch", "--set-upstream-to=origin/stable35")
+                    self.git(app, "update-ref", "-d", "refs/remotes/origin/stable35")
+                else:
+                    self.git(app, "checkout", "--detach")
+                result = self.run_script("--only", app, "--status")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("[activity]=", result.stdout)
+                self.assertIn(expected, result.stdout)
+                self.assertEqual(tracked.read_text(), "uncommitted change\n")
+
+    def make_diverged_app(self):
+        app, tracked = self.make_reset_app()
+        tracked.write_text("local commit\n")
+        self.git(app, "checkout", "-b", "other", "origin/stable35")
+        tracked.write_text("remote change\n")
+        self.git(app, "commit", "-am", "Remote change")
+        self.git(app, "push", "origin", "HEAD:stable35")
+        self.git(app, "checkout", "feature")
+        return app, tracked
+
+    def test_status_reports_divergence(self):
+        app, _ = self.make_diverged_app()
+        result = self.run_script("--only", app, "--status")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("[activity]=diverged", result.stdout)
+
+    def test_status_reports_missing_reset_configuration(self):
+        app, _ = self.make_reset_app()
+        self.git(app, "branch", "--unset-upstream")
+        (self.root / "apps" / app).rename(self.root / "apps" / "unknown")
+        result = self.run_script("--only", "unknown", "--status")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("[unknown]=reset branch is empty; no valid upstream", result.stdout)
+
+    def test_status_reports_merge_even_after_conflicts_are_resolved(self):
+        app, tracked = self.make_diverged_app()
+        merge = subprocess.run(
+            ["git", "-C", str(tracked.parent), "merge", "other"],
+            env=self.env, capture_output=True, text=True,
+        )
+        self.assertNotEqual(merge.returncode, 0)
+        result = self.run_script("--only", app, "--status")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("diverged; conflicts; merge in progress", result.stdout)
+        tracked.write_text("resolved\n")
+        self.git(app, "add", "tracked")
+        result = self.run_script("--only", app, "--status")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("merge in progress", result.stdout)
+        self.assertNotIn("conflicts", result.stdout)
+        self.assertEqual(tracked.read_text(), "resolved\n")
+
+    def test_status_detects_pending_merge_in_linked_worktree(self):
+        app, tracked = self.make_diverged_app()
+        worktree = self.root / "apps" / "viewer"
+        self.git(app, "worktree", "add", "-b", "linked", str(worktree), "feature")
+        self.git("viewer", "branch", "--set-upstream-to=origin/stable35")
+        merge = subprocess.run(
+            ["git", "-C", str(worktree), "merge", "other"],
+            env=self.env, capture_output=True, text=True,
+        )
+        self.assertNotEqual(merge.returncode, 0)
+        result = self.run_script("--only", "viewer", "--status")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("[viewer]=diverged; conflicts; merge in progress", result.stdout)
+
+    def test_status_reports_pending_rebase_with_both_backends(self):
+        for backend in ("--merge", "--apply"):
+            with self.subTest(backend=backend):
+                with tempfile.TemporaryDirectory(dir=self.root) as directory:
+                    original_root = self.root
+                    self.root = Path(directory)
+                    try:
+                        app, tracked = self.make_diverged_app()
+                        rebase = subprocess.run(
+                            ["git", "-C", str(tracked.parent),
+                             "rebase", backend, "other"],
+                            env=self.env, capture_output=True, text=True,
+                        )
+                        self.assertNotEqual(rebase.returncode, 0)
+                        tracked.write_text("resolved\n")
+                        self.git(app, "add", "tracked")
+                        result = self.run_script("--only", app, "--status")
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertIn("rebase in progress", result.stdout)
+                        self.assertNotIn("conflicts", result.stdout)
+                        self.assertEqual(tracked.read_text(), "resolved\n")
+                    finally:
+                        self.root = original_root
+
     def test_reset_accepts_matching_upstream_without_switching_branches(self):
         app, tracked = self.make_reset_app()
         self.git(app, "branch", "-m", "stable34")

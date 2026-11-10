@@ -207,7 +207,7 @@ Options:
   -o, --only APPS         Select space-separated app names (or "subrepo")
   -e, --exclude APPS      Exclude space-separated app names (or "subrepo")
   -r, --rebase            Rebase apps with configured rebase branches
-  -s, --status            Report apps with diverged branches
+  -s, --status            Report divergence, tracking issues, conflicts and pending operations
       --push              Push app branches
       --reset             Hard-reset apps only when tracking the configured branch
       --checkout          Check out configured app branches
@@ -326,14 +326,39 @@ for APP in $APPS; do
         continue
     fi
     if $STATUS; then
-        APP_STATUS=$(git status)
-        case "$APP_STATUS" in
-            *diverged*)
-                ATTENTION[$APP]=diverged
-                ;;
-            *)
-                ;;
-        esac
+        APP_ISSUES=()
+        APP_STATUS=$(git status --porcelain --branch) || exit 1
+        if [[ "${APP_STATUS%%$'\n'*}" =~ \[ahead\ [0-9]+,\ behind\ [0-9]+\] ]]; then
+            APP_ISSUES+=(diverged)
+        fi
+        UNMERGED=$(git ls-files --unmerged) || exit 1
+        if [ -n "$UNMERGED" ]; then
+            APP_ISSUES+=(conflicts)
+        fi
+        RESET_BRANCH="${RESET_BRANCHES[$APP]}"
+        if [ -z "$RESET_BRANCH" ]; then
+            APP_ISSUES+=("reset branch is empty")
+        fi
+        if ! git symbolic-ref --quiet HEAD >/dev/null; then
+            APP_ISSUES+=("detached HEAD")
+        elif ! UPSTREAM=$(git rev-parse --symbolic-full-name '@{upstream}' 2>/dev/null); then
+            APP_ISSUES+=("no valid upstream")
+        elif [ -n "$RESET_BRANCH" ] && [ "$UPSTREAM" != "refs/remotes/$RESET_BRANCH" ]; then
+            APP_ISSUES+=("upstream $UPSTREAM does not match $RESET_BRANCH")
+        fi
+        MERGE_HEAD=$(git rev-parse --git-path MERGE_HEAD) || exit 1
+        REBASE_MERGE=$(git rev-parse --git-path rebase-merge) || exit 1
+        REBASE_APPLY=$(git rev-parse --git-path rebase-apply) || exit 1
+        if [ -f "$MERGE_HEAD" ]; then
+            APP_ISSUES+=("merge in progress")
+        fi
+        if [ -d "$REBASE_MERGE" ] || [ -d "$REBASE_APPLY" ]; then
+            APP_ISSUES+=("rebase in progress")
+        fi
+        if [ "${#APP_ISSUES[@]}" -gt 0 ]; then
+            ATTENTION[$APP]=$(printf '%s; ' "${APP_ISSUES[@]}")
+            ATTENTION[$APP]=${ATTENTION[$APP]%; }
+        fi
         cd "$NCDIR" || exit 1
         continue
     fi
