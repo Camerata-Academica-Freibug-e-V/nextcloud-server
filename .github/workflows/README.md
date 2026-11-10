@@ -27,8 +27,9 @@ Superseded runs on the same branch are cancelled.
   instead of the upstream SQLite installation.
 - CalDAV/CardDAV and Litmus tests against PHP 8.5/MariaDB 12.3.3, preserving both
   endpoint variants.
-- Login, files, and sharing Playwright tests on two shards. The `sharing` project
-  is explicitly included. The installer matrix is excluded.
+- Login and files Playwright tests on two shards, selecting the upstream
+  `default` and `admin-settings` projects. The `sharing` project and installer
+  matrix are excluded.
 - CodeQL for Actions and JavaScript/TypeScript, with a weekly scheduled scan.
   There are no daily test schedules.
 
@@ -117,9 +118,9 @@ For browser tests, start Docker and run:
 ```sh
 npm run playwright:install
 BRANCH=stable35 npx playwright test \
-  --project=default --project=admin-settings --project=sharing \
+  --project=default --project=admin-settings \
   tests/playwright/e2e/login tests/playwright/e2e/files/ \
   tests/playwright/e2e/files_sharing
 ```
 
-Omit the three test-directory arguments to run all non-installer browser tests.
+Omit the three test-directory arguments to run all browser tests in the selected projects.

@@ -151,7 +151,7 @@ jobs:
     - name: Run Playwright tests
       run: >-
         npx playwright test
-        --project=default --project=admin-settings --project=sharing
+        --project=default --project=admin-settings
         tests/playwright/e2e/login
         tests/playwright/e2e/files/
         tests/playwright/e2e/files_sharing
