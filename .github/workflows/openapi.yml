@@ -9,13 +9,18 @@
 
 name: OpenAPI
 
-on: pull_request
+on:
+  pull_request:
+    branches: [cjh-stable35]
+  push:
+    branches: [cjh-stable35]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: openapi-${{ github.head_ref || github.run_id }}
+  group: openapi-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -34,7 +39,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         timeout-minutes: 5
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           extensions: ctype, curl, dom, fileinfo, gd, json, libxml, mbstring, openssl, pcntl, pdo, posix, session, simplexml, xml, xmlreader, xmlwriter, zip, zlib
           coverage: none
           ini-file: development
