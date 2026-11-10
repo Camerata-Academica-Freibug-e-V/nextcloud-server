@@ -25,6 +25,7 @@ class ToolTestsTest(unittest.TestCase):
             "build/pack-support-app.py": "build/tests/test-pack-support-app.py",
             "Makefile": "build/tests/test-pack-support-app.py",
             "build/generate-file-commits": "tests/test_generate_file_commits.py",
+            "build/update-configured-apps.sh": "tests/test_update_apps.py",
             "build/integration/install-dependencies.py":
                 "build/integration/tests/test_install_dependencies.py",
         }
