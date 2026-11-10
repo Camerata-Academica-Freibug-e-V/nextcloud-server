@@ -3,7 +3,8 @@
 # SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Pack the apps below an apps directory into a single tar archive.
+# Pack the apps below an apps directory into a single tar archive,
+# with paths nextcloud/apps/APP_NAME/. Staging paths remain apps/APP_NAME/.
 #
 #  - apps without .git (dir or file) are copied verbatim
 #  - apps with a known packaging rule (make appstore, krankerl) are packaged
@@ -581,7 +582,8 @@ rmdir "$PARTIAL"
 
 mkdir -p -- "$(dirname "$OUTPUT")"
 setTitle "writing $(basename "$OUTPUT")"
-tar -cJf "$OUTPUT" -C "$STAGING" --files-from /dev/null -- "${ARCHIVE_APPS[@]}"
+tar -cJf "$OUTPUT" -C "$STAGING" --transform='flags=rh;s,^,nextcloud/,' \
+	--files-from /dev/null -- "${ARCHIVE_APPS[@]}"
 log pack "wrote $OUTPUT"
 if [[ ${#FAILED[@]} -gt 0 ]]; then
 	log pack "skipped failing apps: ${FAILED[*]}" >&2
