@@ -40,16 +40,13 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
-              - '.github/workflows/**'
+              - '.github/workflows/integration-dav.yml'
               - '3rdparty/**'
               - '**/*.php'
-              - '**/lib/**'
-              - '**/tests/**'
-              - '**/vendor-bin/**'
-              - 'build/integration/**'
-              - '.php-cs-fixer.dist.php'
-              - 'composer.json'
-              - 'composer.lock'
+              - '**/appinfo/info.xml'
+              - 'apps/dav/tests/testsuits/caldavtest/**/*.xml'
+              - '**/composer.json'
+              - '**/composer.lock'
 
   integration-caldav:
     runs-on: ubuntu-latest

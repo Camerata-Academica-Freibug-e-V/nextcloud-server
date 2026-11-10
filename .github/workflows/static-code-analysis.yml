@@ -41,15 +41,11 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
-              - '.github/workflows/**'
+              - '.github/workflows/static-code-analysis.yml'
               - '3rdparty/**'
-              - '**/appinfo/**'
-              - '**/lib/**'
-              - '**/templates/**'
-              - 'vendor/**'
-              - 'vendor-bin/**'
-              - 'composer.json'
-              - 'composer.lock'
+              - '**/appinfo/info.xml'
+              - '**/composer.json'
+              - '**/composer.lock'
               - 'psalm*.xml'
               - 'build/psalm-baseline*.xml'
               - '**/*.php'
