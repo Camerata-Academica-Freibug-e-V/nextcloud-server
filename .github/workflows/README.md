@@ -30,7 +30,7 @@ root Python test changes, and `Makefile` changes to dedicated tests:
 | `build/pack-apps.sh`, `build/has-appstore-target.py` | `build/tests/test-pack-apps.py` |
 | `build/pack-support-app.py`, `Makefile` | `build/tests/test-pack-support-app.py` |
 | `build/generate-file-commits` | `tests/test_generate_file_commits.py` |
-| `update-apps.sh` | `tests/test_update_apps.py`, when present |
+| `build/update-configured-apps.sh` | `tests/test_update_apps.py`, when present |
 | `build/integration/install-dependencies.py` | `build/integration/tests/test_install_dependencies.py` |
 | `build/run-tool-tests.py` | All available tooling tests |
 | Workflow YAML | `.github/tests/workflow-filters.test.mjs` |

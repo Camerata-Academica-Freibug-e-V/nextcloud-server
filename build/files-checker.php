@@ -89,7 +89,6 @@ $expectedFiles = [
 	'tests',
 	'themes',
 	'tsconfig.json',
-	'update-apps.sh',
 	'vendor-bin',
 	'version.php',
 	'vite.config.ts',

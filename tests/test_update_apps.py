@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "update-apps.sh"
+SCRIPT = Path(__file__).resolve().parents[1] / "build" / "update-configured-apps.sh"
 
 
 class UpdateAppsShellTest(unittest.TestCase):
@@ -508,7 +508,7 @@ class UpdateAppsShellTest(unittest.TestCase):
             with self.subTest(option=option):
                 result = self.run_script(option)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn("Usage: update-apps.sh [OPTIONS]", result.stdout)
+                self.assertIn("Usage: update-configured-apps.sh [OPTIONS]", result.stdout)
                 self.assertIn("-h, --help", result.stdout)
                 self.assertIn("--shell COMMAND", result.stdout)
 

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Run a Bash command instead of updating apps:
-# ./update-apps.sh --only "calendar contacts" --shell 'pwd; git status --short'
+# ./build/update-configured-apps.sh --only "calendar contacts" --shell 'pwd; git status --short'
 # --shell honors --only and --exclude, and stops on command failure.
 # --exclude matches exact app names and applies after --only, regardless of order.
 
