@@ -41,15 +41,19 @@ def download(url, destination):
                 output.write(chunk)
 
 
-def repack(source, checksum, output):
-    """Verify the download and extract only the support app using safe tar filters."""
+def checksum_matches(source, checksum):
     fields = checksum.read_text().split()
     expected = fields[0] if fields else ""
     if not re.fullmatch(r"[a-fA-F0-9]{64}", expected):
         raise ValueError("Invalid upstream SHA256 checksum")
     with source.open("rb") as stream:
         actual = hashlib.file_digest(stream, "sha256").hexdigest()
-    if actual != expected.lower():
+    return actual == expected.lower()
+
+
+def repack(source, checksum, output):
+    """Verify the download and extract only the support app using safe tar filters."""
+    if not checksum_matches(source, checksum):
         raise ValueError("Upstream distribution SHA256 checksum mismatch")
 
     with tempfile.TemporaryDirectory(prefix="nextcloud-support-") as directory:
@@ -87,6 +91,14 @@ def main():
     )
     parser.add_argument("checkout", nargs="?", type=Path, default=Path("."))
     parser.add_argument("output_dir", nargs="?", type=Path, default=Path("."))
+    parser.add_argument(
+        "--use-cache", type=Path, metavar="FOLDER",
+        help=(
+            "Reuse server tarballs in FOLDER when they match the freshly downloaded "
+            "upstream SHA256 checksum; download and cache missing or mismatched files. "
+            "The release index and checksum still require network access."
+        ),
+    )
     args = parser.parse_args()
     try:
         result = subprocess.run(
@@ -105,9 +117,27 @@ def main():
             name = f"nextcloud-{release}.tar.bz2"
             print(f"Using official Nextcloud {release} for checkout {result.stdout}", flush=True)
             download(RELEASES_URL + name + ".sha256", work / "checksum")
-            download(RELEASES_URL + name, work / name)
+            source = work / name
+            if args.use_cache is not None:
+                args.use_cache.mkdir(parents=True, exist_ok=True)
+                source = args.use_cache / name
+                if source.is_file() and checksum_matches(source, work / "checksum"):
+                    print(f"Using cached {source}", flush=True)
+                else:
+                    if source.exists():
+                        print(f"Cached {source} has a checksum mismatch; downloading again", flush=True)
+                    with tempfile.TemporaryDirectory(
+                        prefix=".nextcloud-release-", dir=args.use_cache,
+                    ) as staging:
+                        pending = Path(staging) / name
+                        download(RELEASES_URL + name, pending)
+                        if not checksum_matches(pending, work / "checksum"):
+                            raise ValueError("Upstream distribution SHA256 checksum mismatch")
+                        pending.replace(source)
+            else:
+                download(RELEASES_URL + name, source)
             output = args.output_dir.resolve() / f"support-nextcloud-{release}.tar.xz"
-            repack(work / name, work / "checksum", output)
+            repack(source, work / "checksum", output)
             print(f"Created {output}")
     except (OSError, ValueError, tarfile.TarError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"ERROR: {error}\n")
