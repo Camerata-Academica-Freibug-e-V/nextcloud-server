@@ -209,7 +209,7 @@ Options:
   -r, --rebase            Rebase apps with configured rebase branches
   -s, --status            Report apps with diverged branches
       --push              Push app branches
-      --reset             Hard-reset apps to their configured branches
+      --reset             Hard-reset apps only when tracking the configured branch
       --checkout          Check out configured app branches
       --shell COMMAND     Run a Bash command in each selected app directory
 EOF
@@ -346,26 +346,42 @@ for APP in $APPS; do
         STABLE_BRANCH=$CORE_BRANCH
     fi
     echo "** Updating $APP@$BRANCH **"
-    setTitle "$APP (git fetch)"
-    git fetch --all -p
-    case $BRANCH in
-        "$STABLE_BRANCH")
-            ;;
-        stable*)
-            setTitle "$APP (git checkout $STABLE_BRANCH)"
-            echo "Updating to $STABLE_BRANCH"
-            git checkout "$STABLE_BRANCH"
-            ;;
-    esac
     if $RESET; then
         RESET_BRANCH="${RESET_BRANCHES[$APP]}"
-        setTitle "$APP (get reset --hard $RESET_BRANCH)"
         if [ -z "$RESET_BRANCH" ]; then
-            echo "Reset branch for app $APP is empty" 1>&2
+            echo "Reset branch for app $APP is empty" >&2
             exit 1
         fi
+        if ! git symbolic-ref --quiet HEAD >/dev/null; then
+            echo "Refusing to reset app $APP: HEAD is detached" >&2
+            exit 1
+        fi
+        if ! UPSTREAM=$(git rev-parse --symbolic-full-name '@{upstream}'); then
+            echo "Refusing to reset app $APP: current branch has no valid upstream" >&2
+            exit 1
+        fi
+        if [ "$UPSTREAM" != "refs/remotes/$RESET_BRANCH" ]; then
+            echo "Refusing to reset app $APP: upstream $UPSTREAM does not match $RESET_BRANCH" >&2
+            exit 1
+        fi
+    fi
+    setTitle "$APP (git fetch)"
+    git fetch --all -p || exit 1
+    if ! $RESET; then
+        case $BRANCH in
+            "$STABLE_BRANCH")
+                ;;
+            stable*)
+                setTitle "$APP (git checkout $STABLE_BRANCH)"
+                echo "Updating to $STABLE_BRANCH"
+                git checkout "$STABLE_BRANCH"
+                ;;
+        esac
+    fi
+    if $RESET; then
+        setTitle "$APP (git reset --hard $RESET_BRANCH)"
         echo "*** Hard resetting $APP to $RESET_BRANCH ***"
-        git reset --hard "$RESET_BRANCH"
+        git reset --hard "$RESET_BRANCH" || exit 1
     fi
     if $CHECKOUT; then
         RESET_BRANCH="${RESET_BRANCHES[$APP]}"

@@ -34,6 +34,103 @@ class UpdateAppsShellTest(unittest.TestCase):
     def result_lines(self):
         return (self.root / "result").read_text().splitlines()
 
+    def git(self, app, *args):
+        return subprocess.run(
+            ["git", "-C", str(self.root / "apps" / app), *args],
+            env=self.env,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+    def make_reset_app(self):
+        app = "activity"
+        self.make_apps([app])
+        self.git(app, "init", "--initial-branch=feature")
+        self.git(app, "config", "user.name", "Test")
+        self.git(app, "config", "user.email", "test@example.com")
+        tracked = self.root / "apps" / app / "tracked"
+        tracked.write_text("original\n")
+        self.git(app, "add", "tracked")
+        self.git(app, "commit", "-m", "Initial")
+        remote = self.root / "remote.git"
+        self.git(app, "init", "--bare", str(remote))
+        self.git(app, "remote", "add", "origin", str(remote))
+        self.git(app, "push", "--set-upstream", "origin", "HEAD:stable35")
+        tracked.write_text("local commit\n")
+        self.git(app, "commit", "-am", "Local change")
+        tracked.write_text("uncommitted change\n")
+        return app, tracked
+
+    def test_reset_accepts_matching_upstream_without_switching_branches(self):
+        app, tracked = self.make_reset_app()
+        self.git(app, "branch", "-m", "stable34")
+        self.git(app, "branch", "stable35")
+        result = self.run_script("--only", app, "--reset")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.git(app, "branch", "--show-current"), "stable34")
+        self.assertEqual(
+            self.git(app, "rev-parse", "HEAD"),
+            self.git(app, "rev-parse", "origin/stable35"),
+        )
+        self.assertEqual(tracked.read_text(), "original\n")
+
+    def test_reset_stops_when_fetch_fails(self):
+        app, tracked = self.make_reset_app()
+        before = self.git(app, "rev-parse", "HEAD")
+        self.git(app, "remote", "set-url", "origin", str(self.root / "missing.git"))
+        result = self.run_script("--only", app, "--reset")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("*** Hard resetting", result.stdout)
+        self.assertEqual(self.git(app, "rev-parse", "HEAD"), before)
+        self.assertEqual(tracked.read_text(), "uncommitted change\n")
+
+    def test_reset_failure_is_reported(self):
+        app, tracked = self.make_reset_app()
+        (self.root / "apps" / app / ".git" / "index.lock").touch()
+        result = self.run_script("--only", app, "--reset")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("index.lock", result.stderr)
+        self.assertEqual(tracked.read_text(), "uncommitted change\n")
+
+    def test_reset_rejections_preserve_head_and_worktree(self):
+        cases = (
+            "different-upstream", "no-upstream", "detached",
+            "local-upstream", "missing-upstream",
+        )
+        for case in cases:
+            with self.subTest(case=case):
+                with tempfile.TemporaryDirectory(dir=self.root) as directory:
+                    original_root = self.root
+                    self.root = Path(directory)
+                    try:
+                        app, tracked = self.make_reset_app()
+                        if case == "different-upstream":
+                            self.git(app, "push", "origin", "HEAD:other")
+                            self.git(app, "branch", "--set-upstream-to=origin/other")
+                        elif case == "no-upstream":
+                            self.git(app, "branch", "--unset-upstream")
+                        elif case == "detached":
+                            self.git(app, "checkout", "--detach")
+                        elif case == "local-upstream":
+                            self.git(app, "branch", "origin/stable35")
+                            self.git(app, "config", "branch.feature.remote", ".")
+                            self.git(app, "config", "branch.feature.merge",
+                                     "refs/heads/origin/stable35")
+                        else:
+                            self.git(app, "update-ref", "-d",
+                                     "refs/remotes/origin/stable35")
+                        before = self.git(app, "rev-parse", "HEAD")
+                        status = self.git(app, "status", "--porcelain")
+                        result = self.run_script("--only", app, "--reset")
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertIn("Refusing to reset app activity:", result.stderr)
+                        self.assertEqual(self.git(app, "rev-parse", "HEAD"), before)
+                        self.assertEqual(self.git(app, "status", "--porcelain"), status)
+                        self.assertEqual(tracked.read_text(), "uncommitted change\n")
+                    finally:
+                        self.root = original_root
+
     def test_only_runs_bash_in_selected_app_directories(self):
         self.make_apps(["calendar", "contacts", "mail"])
         result = self.run_script(
