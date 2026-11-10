@@ -8,15 +8,16 @@
 #  - apps without .git (dir or file) are copied verbatim
 #  - apps with a known packaging rule (make appstore, krankerl) are packaged
 #    with that rule and the resulting tarball is unpacked into the staging dir
+#    (supports .tar, .tar.gz/.tgz, .tar.xz/.txz and .tar.bz2/.tbz/.tbz2)
 #  - all other git apps are cleaned heuristically: built JS assets must exist,
 #    then node_modules/, vendor-bin/*, VCS files, top-level test suites
 #    (test/, tests/, phpunit/, unit/) and (for JS apps) src/ are dropped
 #
-# Usage: pack-apps.sh [-a APPS_DIR] [-o OUTPUT.tar.gz] [-d OUTPUT_DIR] [-s STAGING_DIR] [-c]
+# Usage: pack-apps.sh [-a APPS_DIR] [-o OUTPUT.tar.xz] [-d OUTPUT_DIR] [-s STAGING_DIR] [-c]
 #                     [-x EXCLUDES] [-i ONLY] [-k] [-n] [--dry-run] [-h] [APP ...]
 #   -h, --help  display this header and exit
 #   -a  apps directory (default: ./apps)
-#   -o  output archive (default: ./apps-YYYYmmdd-HHMMSS[-SELECTION].tar.gz)
+#   -o  xz-compressed output archive (default: ./apps-YYYYmmdd-HHMMSS[-SELECTION].tar.xz)
 #       Selection suffix: only-<union>, apps-<positional union>, with-server,
 #       exclude-<union>, in that order. Unions use +, are sorted/deduplicated,
 #       and normalize class aliases. The implicit :server filter is omitted.
@@ -268,7 +269,9 @@ package_with_rule() {
 		} ;;
 	esac
 	# Pick the newest tarball produced by the rule (location differs between apps).
-	tarball=$(find "$dir/build" -type f \( -name '*.tar.gz' -o -name '*.tgz' \) \
+	# GNU tar detects the compression format when extracting.
+	tarball=$(find "$dir/build" -regextype posix-extended -type f \
+		-regex '.*\.(tar(\.(gz|xz|bz2))?|tgz|txz|tbz2?)' \
 		-newer "$marker" -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2-)
 	rm -f "$marker"
 	[[ -n $tarball ]] || { die "$app" "no tarball found below $dir/build after '$rule'"; return 1; }
@@ -276,7 +279,7 @@ package_with_rule() {
 
 	local tmp
 	tmp=$(mktemp -d)
-	tar -xzf "$tarball" -C "$tmp"
+	tar -xf "$tarball" -C "$tmp"
 	if [[ -d $tmp/$app ]]; then
 		mv "$tmp/$app" "$dest"
 	else
@@ -493,7 +496,7 @@ if [[ -z $OUTPUT ]]; then
 	if [[ ${#NAME_EXCLUDES[@]} -gt 0 ]]; then
 		SUFFIX+="-exclude-$(selection_union "${NAME_EXCLUDES[@]}")"
 	fi
-	OUTPUT=$(realpath -m "$OUTPUT_DIR/apps-$(date +%Y%m%d-%H%M%S)$SUFFIX.tar.gz")
+	OUTPUT=$(realpath -m "$OUTPUT_DIR/apps-$(date +%Y%m%d-%H%M%S)$SUFFIX.tar.xz")
 fi
 
 FAILED=()
@@ -531,7 +534,7 @@ rmdir "$PARTIAL"
 
 mkdir -p -- "$(dirname "$OUTPUT")"
 setTitle "writing $(basename "$OUTPUT")"
-tar -czf "$OUTPUT" -C "$STAGING" --files-from /dev/null -- "${ARCHIVE_APPS[@]}"
+tar -cJf "$OUTPUT" -C "$STAGING" --files-from /dev/null -- "${ARCHIVE_APPS[@]}"
 log pack "wrote $OUTPUT"
 if [[ ${#FAILED[@]} -gt 0 ]]; then
 	log pack "skipped failing apps: ${FAILED[*]}" >&2
