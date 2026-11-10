@@ -40,16 +40,12 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
-              - '.github/workflows/**'
+              - '.github/workflows/integration-litmus.yml'
               - '3rdparty/**'
               - '**/*.php'
-              - '**/lib/**'
-              - '**/tests/**'
-              - '**/vendor-bin/**'
-              - 'build/integration/**'
-              - '.php-cs-fixer.dist.php'
-              - 'composer.json'
-              - 'composer.lock'
+              - '**/appinfo/info.xml'
+              - '**/composer.json'
+              - '**/composer.lock'
 
   integration-litmus:
     runs-on: ubuntu-latest

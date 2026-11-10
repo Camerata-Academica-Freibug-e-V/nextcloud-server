@@ -47,14 +47,14 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
-              - '.github/workflows/**'
-              - '**/src/**'
+              - '.github/workflows/lint-stylelint.yml'
               - '**/appinfo/info.xml'
-              - 'package.json'
-              - 'package-lock.json'
-              - '**/*.css'
-              - '**/*.scss'
-              - '**/*.vue'
+              - '**/package.json'
+              - '**/package-lock.json'
+              - 'stylelint.config.js'
+              - '*.{css,scss,vue}'
+              - 'apps/**/*.{css,scss,vue}'
+              - 'core/**/*.{css,scss,vue}'
 
   lint:
     runs-on: ubuntu-latest

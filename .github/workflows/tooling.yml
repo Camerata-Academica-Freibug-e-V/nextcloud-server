@@ -1,0 +1,78 @@
+# SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: MIT
+
+name: Repository tooling tests
+
+on:
+  pull_request:
+    branches: [cjh-stable35]
+  push:
+    branches: [cjh-stable35]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tooling-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: ${{ github.event_name == 'push' && '0' || '1' }}
+
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        if: github.event_name != 'workflow_dispatch'
+        id: changes
+        with:
+          base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
+          list-files: json
+          filters: |
+            tools:
+              - '*.py'
+              - '*.sh'
+              - 'Makefile'
+              - 'build/**/*.py'
+              - 'build/**/*.sh'
+              - 'build/generate-file-commits'
+              - 'tests/test_*.py'
+              - '.github/tests/workflow-filters.test.mjs'
+              - '.github/workflows/*.yml'
+              - '.github/workflows/*.yaml'
+            composer:
+              - '.github/workflows/tooling.yml'
+              - 'build/run-tool-tests.py'
+              - 'build/integration/install-dependencies.py'
+              - 'build/integration/tests/test_install_dependencies.py'
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.tools == 'true'
+        with:
+          node-version: '24'
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.composer == 'true'
+        with:
+          php-version: '8.5'
+          tools: composer:2.11.1
+          extensions: curl, zip
+          coverage: none
+
+      - name: Run targeted tooling tests
+        if: github.event_name != 'workflow_dispatch' && steps.changes.outputs.tools == 'true'
+        env:
+          CHANGED_FILES: ${{ steps.changes.outputs.tools_files }}
+        run: python3 build/run-tool-tests.py --files-json "$CHANGED_FILES"
+
+      - name: Run all tooling tests
+        if: github.event_name == 'workflow_dispatch'
+        run: python3 build/run-tool-tests.py --all
