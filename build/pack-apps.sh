@@ -13,7 +13,7 @@
 #    then node_modules/, vendor-bin/*, VCS files, top-level test suites
 #    (test/, tests/, phpunit/, unit/) and (for JS apps) src/ are dropped
 #
-# Usage: pack-apps.sh [-a APPS_DIR] [-o OUTPUT.tar.xz] [-d OUTPUT_DIR] [-s STAGING_DIR] [-c]
+# Usage: pack-apps.sh [-a APPS_DIR] [-o OUTPUT.tar.xz] [-d OUTPUT_DIR] [-s STAGING_DIR] [-c] [-j JOBS]
 #                     [-x EXCLUDES] [-i ONLY] [-k] [-n] [--dry-run] [-h] [APP ...]
 #   -h, --help  display this header and exit
 #   -a  apps directory (default: ./apps)
@@ -26,6 +26,7 @@
 #       created when writing; ignored when -o is given
 #   -s  staging directory, kept after the run (default: temporary, removed)
 #   -c  continue: skip apps already present in the staging directory
+#   -j, --jobs JOBS  run up to JOBS apps at once (default: 1)
 #   -x, --exclude LIST  comma/space separated app names or classes to exclude
 #       (adds to the default :server exclusion; :no-server cancels it)
 #   -i, --only LIST     select only these app names or classes (union)
@@ -80,6 +81,7 @@ DRY_RUN=0
 STAGING=
 TMP_STAGING=
 CONTINUE=0
+JOBS=1
 EXCLUDES=
 ONLY=
 ONLY_SET=0
@@ -121,13 +123,17 @@ while [[ $# -gt 0 ]]; do
 			sed -n '2,/^$/ { /^#/ { s/^# \{0,1\}//; p; }; }' "$0"
 			exit 0
 			;;
-		-a|-o|-d|--output-dir|-s|-x|--exclude|-i|--only|--make-target|--build-command)
+		-a|-o|-d|--output-dir|-s|-x|--exclude|-i|--only|-j|--jobs|--make-target|--build-command)
 			[[ $# -ge 2 ]] || { echo "missing argument for $1" >&2; exit 2; }
 			case $1 in
 				-a) APPS_DIR=$2 ;;
 				-o) OUTPUT=$2 ;;
 				-d|--output-dir) OUTPUT_DIR=$2 ;;
 				-s) STAGING=$2 ;;
+				-j|--jobs)
+					[[ $2 =~ ^[1-9][0-9]*$ ]] || { echo "invalid job count: $2 (expected a positive integer)" >&2; exit 2; }
+					JOBS=$2
+					;;
 				-x|--exclude) EXCLUDES+=" $2" ;;
 				-i|--only) ONLY+=" $2"; ONLY_SET=1 ;;
 				--make-target) add_make_target "$2" ;;
@@ -139,6 +145,16 @@ while [[ $# -gt 0 ]]; do
 		--only=*) ONLY+=" ${1#*=}"; ONLY_SET=1; shift ;;
 		--make-target=*) add_make_target "${1#*=}"; shift ;;
 		--build-command=*) add_build_command "${1#*=}"; shift ;;
+		--jobs=*)
+			JOBS=${1#*=}
+			[[ $JOBS =~ ^[1-9][0-9]*$ ]] || { echo "invalid job count: $JOBS (expected a positive integer)" >&2; exit 2; }
+			shift
+			;;
+		-j*)
+			JOBS=${1#-j}
+			[[ $JOBS =~ ^[1-9][0-9]*$ ]] || { echo "invalid job count: $JOBS (expected a positive integer)" >&2; exit 2; }
+			shift
+			;;
 		-c) CONTINUE=1; shift ;;
 		-k) KEEP_GOING=1; shift ;;
 		-n) NO_RULES=1; shift ;;
@@ -501,8 +517,8 @@ fi
 
 FAILED=()
 ARCHIVE_APPS=()
+BUILD_APPS=()
 for app in "${APPS[@]}"; do
-	setTitle "$app"
 	if [[ ! -f $APPS_DIR/$app/appinfo/info.xml ]]; then
 		log "$app" "not an app, skipping"
 		continue
@@ -515,16 +531,47 @@ for app in "${APPS[@]}"; do
 		fi
 		rm -rf "${STAGING:?}/apps/$app"
 	fi
-	if process_app "$app" "$PARTIAL/$app"; then
-		if [[ $DRY_RUN -eq 0 ]]; then
-			mv "$PARTIAL/$app" "$STAGING/apps/$app"
+	if [[ $DRY_RUN -eq 1 ]]; then
+		setTitle "$app"
+		if process_app "$app" "$PARTIAL/$app"; then
+			ARCHIVE_APPS+=("apps/$app")
+		else
+			[[ $KEEP_GOING -eq 1 ]] || exit 1
+			FAILED+=("$app")
 		fi
-		ARCHIVE_APPS+=("apps/$app")
-	else
-		rm -rf "${PARTIAL:?}/$app"
-		[[ $KEEP_GOING -eq 1 ]] || exit 1
-		FAILED+=("$app")
+		continue
 	fi
+	BUILD_APPS+=("$app")
+done
+
+for ((offset = 0; offset < ${#BUILD_APPS[@]}; offset += JOBS)); do
+	BATCH=("${BUILD_APPS[@]:offset:JOBS}")
+	PIDS=()
+	for app in "${BATCH[@]}"; do
+		(
+			TITLE_MODE=none
+			process_app "$app" "$PARTIAL/$app"
+		) >"$PARTIAL/$app.stdout" 2>"$PARTIAL/$app.stderr" &
+		PIDS+=("$!")
+	done
+	BATCH_FAILED=0
+	for index in "${!BATCH[@]}"; do
+		app=${BATCH[$index]}
+		if wait "${PIDS[$index]}"; then
+			cat "$PARTIAL/$app.stdout"
+			cat "$PARTIAL/$app.stderr" >&2
+			mv "$PARTIAL/$app" "$STAGING/apps/$app"
+			ARCHIVE_APPS+=("apps/$app")
+		else
+			cat "$PARTIAL/$app.stdout"
+			cat "$PARTIAL/$app.stderr" >&2
+			rm -rf "${PARTIAL:?}/$app"
+			FAILED+=("$app")
+			BATCH_FAILED=1
+		fi
+		rm -f "$PARTIAL/$app.stdout" "$PARTIAL/$app.stderr"
+	done
+	[[ $BATCH_FAILED -eq 0 || $KEEP_GOING -eq 1 ]] || exit 1
 done
 if [[ $DRY_RUN -eq 1 ]]; then
 	log pack "would archive ${#ARCHIVE_APPS[@]} apps to $OUTPUT (dry run; nothing packaged)"
