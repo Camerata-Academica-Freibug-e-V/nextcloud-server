@@ -3,26 +3,41 @@
 name: Litmus integration tests
 on:
   pull_request:
+    branches: [cjh-stable35]
+  push:
+    branches: [cjh-stable35]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: integration-litmus-${{ github.head_ref || github.run_id }}
+  group: integration-litmus-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
 
     outputs:
       src: ${{ steps.changes.outputs.src}}
 
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'push'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        if: github.event_name != 'workflow_dispatch'
         id: changes
         continue-on-error: true
         with:
+          base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
               - '.github/workflows/**'
@@ -45,10 +60,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-versions: ['8.3', '8.5']
+        php-versions: ['8.5']
         endpoint: ['webdav', 'dav']
 
     name: Litmus WebDAV ${{ matrix.endpoint }}
+
+    services:
+      mariadb:
+        image: mariadb:12.3.3
+        ports:
+          - 4444:3306/tcp
+        env:
+          MARIADB_ROOT_PASSWORD: rootpassword
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval 5s --health-timeout 2s --health-retries 10
 
     steps:
         - name: Checkout server
@@ -63,7 +87,7 @@ jobs:
           with:
             php-version: ${{ matrix.php-versions }}
             # https://docs.nextcloud.com/server/stable/admin_manual/installation/source_installation.html#prerequisites-for-manual-installation
-            extensions: bz2, ctype, curl, dom, fileinfo, gd, iconv, intl, json, libxml, mbstring, openssl, pcntl, posix, redis, session, simplexml, xmlreader, xmlwriter, zip, zlib, sqlite, pdo_sqlite
+            extensions: bz2, ctype, curl, dom, fileinfo, gd, iconv, intl, json, libxml, mbstring, mysql, openssl, pcntl, pdo_mysql, posix, session, simplexml, xmlreader, xmlwriter, zip, zlib
             coverage: none
             ini-file: development
           env:
@@ -74,8 +98,10 @@ jobs:
             mkdir data
             ./occ maintenance:install \
               --verbose \
-              --database=sqlite \
+              --database=mysql \
               --database-name=nextcloud \
+              --database-host=127.0.0.1 \
+              --database-port=4444 \
               --database-user=root \
               --database-pass=rootpassword \
               --admin-user admin \

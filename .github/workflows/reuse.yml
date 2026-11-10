@@ -9,10 +9,19 @@
 
 name: REUSE Compliance Check
 
-on: [pull_request]
+on:
+  pull_request:
+    branches: [cjh-stable35]
+  push:
+    branches: [cjh-stable35]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: reuse-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   reuse-compliance-check:
