@@ -96,10 +96,11 @@ class SelectionTest(unittest.TestCase):
         self.assertEqual(result.stderr, "")
         self.assertIn("[pack] wrote ", result.stdout)
         with tarfile.open(self.root / "out.tgz", mode="r:xz") as archive:
+            self.assertTrue(all(name.startswith("nextcloud/apps/") for name in archive.getnames()))
             return {
-                name.split("/")[1]
+                name.split("/")[2]
                 for name in archive.getnames()
-                if name.startswith("apps/")
+                if name.startswith("nextcloud/apps/")
             }
 
     def test_help_prints_header_without_comment_prefixes(self):
@@ -157,7 +158,7 @@ class SelectionTest(unittest.TestCase):
         with tarfile.open(
             self.root / "apps-20261109-203119-only-calendar.tar.xz", mode="r:xz"
         ) as archive:
-            self.assertIn("apps/calendar/appinfo/info.xml", archive.getnames())
+            self.assertIn("nextcloud/apps/calendar/appinfo/info.xml", archive.getnames())
         self.assertIn(
             f"to {self.root}/out.tgz", self.run_dry("--only", ":no-legacy")
         )
@@ -368,15 +369,28 @@ class SelectionTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.root / "maximum").read_text(), "2")
         with tarfile.open(self.root / "parallel.tar.xz", mode="r:xz") as archive:
-            self.assertIn("apps/calendar/appinfo/info.xml", archive.getnames())
-            self.assertIn("apps/disabled/appinfo/info.xml", archive.getnames())
-            self.assertIn("apps/legacy/appinfo/info.xml", archive.getnames())
+            self.assertIn("nextcloud/apps/calendar/appinfo/info.xml", archive.getnames())
+            self.assertIn("nextcloud/apps/disabled/appinfo/info.xml", archive.getnames())
+            self.assertIn("nextcloud/apps/legacy/appinfo/info.xml", archive.getnames())
 
     def test_jobs_must_be_positive_integers(self):
         for args in (("-j", "0"), ("--jobs", "-1"), ("--jobs=abc",), ("-j0",)):
             with self.subTest(args=args):
                 result = self.run_pack(*args, success=False)
                 self.assertIn("invalid job count", result.stderr)
+
+    def test_archive_prefix_preserves_link_targets(self):
+        app = self.root / "apps/calendar"
+        (app / "info-link").symlink_to("appinfo/info.xml")
+        os.link(app / "appinfo/info.xml", app / "info-hardlink")
+        self.assertEqual(self.run_pack("-i", "calendar"), {"calendar"})
+        with tarfile.open(self.root / "out.tgz", "r:xz") as archive:
+            self.assertEqual(archive.getmember("nextcloud/apps/calendar/info-link").linkname,
+                             "appinfo/info.xml")
+            links = [member for member in archive.getmembers() if member.islnk()]
+            self.assertEqual(len(links), 1)
+            self.assertTrue(links[0].linkname.startswith("nextcloud/apps/calendar/"))
+            self.assertEqual(archive.extractfile(links[0]).read(), b"")
 
     def test_continue_archive_obeys_current_selection(self):
         self.assertEqual(
@@ -524,7 +538,7 @@ class SelectionTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         with tarfile.open(self.root / "custom.tgz") as archive:
             self.assertEqual(
-                archive.extractfile("apps/calendar/custom").read(), b"custom=archive"
+                archive.extractfile("nextcloud/apps/calendar/custom").read(), b"custom=archive"
             )
         for failure in ("false; touch must-not-run", "false | true; touch must-not-run",
                         command + "; false"):
@@ -562,7 +576,7 @@ class SelectionTest(unittest.TestCase):
                 self.assertIn(f"using {self.root}/apps/calendar/build/calendar.{extension}",
                               result.stdout)
                 with tarfile.open(self.root / "formats.tar.xz", mode="r:xz") as archive:
-                    self.assertIn("apps/calendar/appinfo/info.xml", archive.getnames())
+                    self.assertIn("nextcloud/apps/calendar/appinfo/info.xml", archive.getnames())
                 (self.root / f"apps/calendar/build/calendar.{extension}").unlink()
 
     def test_make_target_override_creates_distribution_archive(self):
@@ -586,9 +600,9 @@ class SelectionTest(unittest.TestCase):
         self.assertIn("packaging with rule 'make-build'", result.stdout)
         with tarfile.open(self.root / "out.tgz") as archive:
             self.assertEqual(
-                archive.extractfile("apps/calendar/packaged").read(), b"distribution"
+                archive.extractfile("nextcloud/apps/calendar/packaged").read(), b"distribution"
             )
-            self.assertNotIn("apps/calendar/Makefile", archive.getnames())
+            self.assertNotIn("nextcloud/apps/calendar/Makefile", archive.getnames())
         # A failed target must not use a tarball it produced before failing.
         with (self.root / "apps/calendar/Makefile").open("a") as makefile:
             makefile.write("\tfalse\n")
