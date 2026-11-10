@@ -39,6 +39,16 @@ does not expose PHP/image or database selection. Its upstream branch is
 The PHP version in the Litmus client image is unrelated to the tested server,
 which runs PHP 8.5 on the runner.
 
+The MariaDB Behat job pins Composer 2.11.1 for native `Retry-After` support
+(both seconds and HTTP-date) and limits concurrent HTTP downloads to four.
+Dependency installation gets four attempts with 60/120/240-second backoff,
+plus 0-15 seconds of jitter. Composer reports requested waits above its native
+60-second ceiling in its error output; `build/integration/install-dependencies.py`
+preserves those longer waits instead of retrying early. Keep that diagnostic
+format in sync when upgrading Composer. The dependency step times out after
+20 minutes, so an excessive server-requested wait fails rather than retrying
+before the requested time. Test execution itself is not retried.
+
 ## Disabled workflows
 
 The original files are preserved in `../disabled-workflows/`, outside GitHub's
