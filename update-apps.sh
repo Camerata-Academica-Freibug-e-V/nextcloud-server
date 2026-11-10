@@ -3,6 +3,11 @@
 # SPDX-FileCopyrightText: 2026 Claus-Justus Heine
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+# Run a Bash command instead of updating apps:
+# ./update-apps.sh --only "calendar contacts" --shell 'pwd; git status --short'
+# --shell honors --only and --exclude, and stops on command failure.
+# --exclude matches exact app names and applies after --only, regardless of order.
+
 export LC_ALL=C.UTF-8
 
 ALL_APPS="
@@ -59,7 +64,10 @@ RESET=false
 REBASE=false
 STATUS=false
 LIST=false
+SHELL_MODE=false
+SHELL_COMMAND=
 APPS="${ALL_APPS}"
+declare -A EXCLUDED_APPS
 
 declare -A BUILD_COMMANDS
 BUILD_COMMANDS=(
@@ -176,8 +184,9 @@ SUBREPO_APPS=(
 )
 
 NCDIR=$(realpath .)
+CMD=$(basename "$0")
 
-VALID_ARGS=$(getopt -o bldre:o:s --long build,list,dev,only:,exclude:,rebase,status,push,reset,checkout -- "$@")
+VALID_ARGS=$(getopt -o bldhre:o:s --long help,build,list,dev,only:,exclude:,rebase,status,push,reset,checkout,shell: -- "$@")
 # shellcheck disable=SC2181
 if [[ $? -ne 0 ]]; then
     exit 1;
@@ -186,6 +195,26 @@ fi
 eval set -- "$VALID_ARGS"
 while true; do
   case "$1" in
+    -h|--help)
+      cat <<EOF
+Usage: $CMD [OPTIONS]
+
+Options:
+  -h, --help              Show this help and exit
+  -b, --build             Build apps with their configured build command
+  -l, --list              List selected apps and exit
+  -d, --dev               Use development build mode
+  -o, --only APPS         Select space-separated app names (or "subrepo")
+  -e, --exclude APPS      Exclude space-separated app names (or "subrepo")
+  -r, --rebase            Rebase apps with configured rebase branches
+  -s, --status            Report divergence, tracking issues, conflicts and pending operations
+      --push              Push app branches
+      --reset             Hard-reset apps only when tracking the configured branch
+      --checkout          Check out configured app branches
+      --shell COMMAND     Run a Bash command in each selected app directory
+EOF
+      exit 0
+      ;;
     -l|--list)
       LIST=true
       shift
@@ -216,7 +245,7 @@ while true; do
         ARG="$(echo "${!SUBREPO_APPS[*]}"|xargs -n1|sort|xargs)"
       fi
       for APP in $ARG; do
-          APPS=$(echo "$APPS"|grep -Fv "$APP")
+          EXCLUDED_APPS[$APP]=true
       done
       shift 2
       ;;
@@ -236,16 +265,30 @@ while true; do
       STATUS=true
       shift
       ;;
+    --shell)
+      SHELL_MODE=true
+      SHELL_COMMAND=$2
+      shift 2
+      ;;
     --) shift;
       break
       ;;
   esac
 done
 
+if [ "${#EXCLUDED_APPS[@]}" -gt 0 ]; then
+    SELECTED_APPS=()
+    for APP in $APPS; do
+        if [ "${EXCLUDED_APPS[$APP]}" != true ]; then
+            SELECTED_APPS+=("$APP")
+        fi
+    done
+    APPS="${SELECTED_APPS[*]}"
+fi
+
 declare -A ATTENTION
 
 SHORT_PWD=$(basename "$(pwd)")
-CMD=$(basename "$0")
 
 function setTitle
 {
@@ -264,19 +307,58 @@ fi
 for APP in $APPS; do
     setTitle "$APP"
     cd "$NCDIR/apps/$APP" || exit 1
+    if $SHELL_MODE; then
+        setTitle "$APP (running '$SHELL_COMMAND')"
+        echo
+        echo "*** $APP: running '$SHELL_COMMAND'"
+        echo
+        bash -c -- "$SHELL_COMMAND" || {
+            RESULT=$?
+            echo "Shell command failed for app $APP (exit $RESULT)" >&2
+            exit "$RESULT"
+        }
+        setTitle
+        cd "$NCDIR" || exit 1
+        continue
+    fi
     if ! [ -e .git ]; then
         cd "$NCDIR" || exit 1
         continue
     fi
     if $STATUS; then
-        APP_STATUS=$(git status)
-        case "$APP_STATUS" in
-            *diverged*)
-                ATTENTION[$APP]=diverged
-                ;;
-            *)
-                ;;
-        esac
+        APP_ISSUES=()
+        APP_STATUS=$(git status --porcelain --branch) || exit 1
+        if [[ "${APP_STATUS%%$'\n'*}" =~ \[ahead\ [0-9]+,\ behind\ [0-9]+\] ]]; then
+            APP_ISSUES+=(diverged)
+        fi
+        UNMERGED=$(git ls-files --unmerged) || exit 1
+        if [ -n "$UNMERGED" ]; then
+            APP_ISSUES+=(conflicts)
+        fi
+        RESET_BRANCH="${RESET_BRANCHES[$APP]}"
+        if [ -z "$RESET_BRANCH" ]; then
+            APP_ISSUES+=("reset branch is empty")
+        fi
+        if ! git symbolic-ref --quiet HEAD >/dev/null; then
+            APP_ISSUES+=("detached HEAD")
+        elif ! UPSTREAM=$(git rev-parse --symbolic-full-name '@{upstream}' 2>/dev/null); then
+            APP_ISSUES+=("no valid upstream")
+        elif [ -n "$RESET_BRANCH" ] && [ "$UPSTREAM" != "refs/remotes/$RESET_BRANCH" ]; then
+            APP_ISSUES+=("upstream $UPSTREAM does not match $RESET_BRANCH")
+        fi
+        MERGE_HEAD=$(git rev-parse --git-path MERGE_HEAD) || exit 1
+        REBASE_MERGE=$(git rev-parse --git-path rebase-merge) || exit 1
+        REBASE_APPLY=$(git rev-parse --git-path rebase-apply) || exit 1
+        if [ -f "$MERGE_HEAD" ]; then
+            APP_ISSUES+=("merge in progress")
+        fi
+        if [ -d "$REBASE_MERGE" ] || [ -d "$REBASE_APPLY" ]; then
+            APP_ISSUES+=("rebase in progress")
+        fi
+        if [ "${#APP_ISSUES[@]}" -gt 0 ]; then
+            ATTENTION[$APP]=$(printf '%s; ' "${APP_ISSUES[@]}")
+            ATTENTION[$APP]=${ATTENTION[$APP]%; }
+        fi
         cd "$NCDIR" || exit 1
         continue
     fi
@@ -289,26 +371,42 @@ for APP in $APPS; do
         STABLE_BRANCH=$CORE_BRANCH
     fi
     echo "** Updating $APP@$BRANCH **"
-    setTitle "$APP (git fetch)"
-    git fetch --all -p
-    case $BRANCH in
-        "$STABLE_BRANCH")
-            ;;
-        stable*)
-            setTitle "$APP (git checkout $STABLE_BRANCH)"
-            echo "Updating to $STABLE_BRANCH"
-            git checkout "$STABLE_BRANCH"
-            ;;
-    esac
     if $RESET; then
         RESET_BRANCH="${RESET_BRANCHES[$APP]}"
-        setTitle "$APP (get reset --hard $RESET_BRANCH)"
         if [ -z "$RESET_BRANCH" ]; then
-            echo "Reset branch for app $APP is empty" 1>&2
+            echo "Reset branch for app $APP is empty" >&2
             exit 1
         fi
+        if ! git symbolic-ref --quiet HEAD >/dev/null; then
+            echo "Refusing to reset app $APP: HEAD is detached" >&2
+            exit 1
+        fi
+        if ! UPSTREAM=$(git rev-parse --symbolic-full-name '@{upstream}'); then
+            echo "Refusing to reset app $APP: current branch has no valid upstream" >&2
+            exit 1
+        fi
+        if [ "$UPSTREAM" != "refs/remotes/$RESET_BRANCH" ]; then
+            echo "Refusing to reset app $APP: upstream $UPSTREAM does not match $RESET_BRANCH" >&2
+            exit 1
+        fi
+    fi
+    setTitle "$APP (git fetch)"
+    git fetch --all -p || exit 1
+    if ! $RESET; then
+        case $BRANCH in
+            "$STABLE_BRANCH")
+                ;;
+            stable*)
+                setTitle "$APP (git checkout $STABLE_BRANCH)"
+                echo "Updating to $STABLE_BRANCH"
+                git checkout "$STABLE_BRANCH"
+                ;;
+        esac
+    fi
+    if $RESET; then
+        setTitle "$APP (git reset --hard $RESET_BRANCH)"
         echo "*** Hard resetting $APP to $RESET_BRANCH ***"
-        git reset --hard "$RESET_BRANCH"
+        git reset --hard "$RESET_BRANCH" || exit 1
     fi
     if $CHECKOUT; then
         RESET_BRANCH="${RESET_BRANCHES[$APP]}"
