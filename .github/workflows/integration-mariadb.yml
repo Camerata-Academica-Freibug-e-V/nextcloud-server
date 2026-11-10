@@ -41,16 +41,16 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
-              - '.github/workflows/**'
+              - '.github/workflows/integration-mariadb.yml'
               - '3rdparty/**'
               - '**/*.php'
-              - '**/lib/**'
-              - '**/tests/**'
-              - '**/vendor-bin/**'
-              - 'build/integration/**'
-              - '.php-cs-fixer.dist.php'
-              - 'composer.json'
-              - 'composer.lock'
+              - '**/appinfo/info.xml'
+              - 'build/integration/**/*.feature'
+              - 'build/integration/**/*.yml'
+              - 'build/integration/**/*.yaml'
+              - 'build/integration/run.sh'
+              - '**/composer.json'
+              - '**/composer.lock'
               - 'core/shipped.json'
 
   integration-mariadb:

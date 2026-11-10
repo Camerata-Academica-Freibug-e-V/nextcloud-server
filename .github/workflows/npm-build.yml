@@ -47,21 +47,19 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
-              - '.github/workflows/**'
-              - 'src/**'
-              - 'appinfo/info.xml'
-              - 'package.json'
-              - 'package-lock.json'
-              - 'tsconfig.json'
-              - '**/*.js'
-              - '**/*.mjs'
-              - '**/*.cjs'
-              - '**/*.ts'
-              - '**/*.mts'
-              - '**/*.vue'
-              - '**/*.css'
-              - '**/*.scss'
-              - 'build/**'
+              - '.github/workflows/npm-build.yml'
+              - '**/appinfo/info.xml'
+              - '**/package.json'
+              - '**/package-lock.json'
+              - '**/tsconfig.json'
+              - '*.{js,mjs,cjs,ts,mts,vue,css,scss}'
+              - 'apps/**/*.{js,mjs,cjs,ts,mts,vue,css,scss}'
+              - 'core/**/*.{js,mjs,cjs,ts,mts,vue,css,scss}'
+              - 'build/frontend/**/*.{js,mjs,cjs,ts,mts,vue,css,scss,json}'
+              - 'build/frontend-legacy/**/*.{js,mjs,cjs,ts,mts,vue,css,scss,json}'
+              - 'build/frontend-legacy/patches/**'
+              - 'build/demi.sh'
+              - 'build/npm-post-build.sh'
 
   build:
     runs-on: ubuntu-latest
