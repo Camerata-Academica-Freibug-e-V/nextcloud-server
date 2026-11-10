@@ -19,7 +19,7 @@ TESTS = {
     },
     "build/tests/test-pack-support-app.py": {"build/pack-support-app.py", "Makefile"},
     "tests/test_generate_file_commits.py": {"build/generate-file-commits"},
-    "tests/test_update_apps.py": {"update-apps.sh"},
+    "tests/test_update_apps.py": {"build/update-configured-apps.sh"},
     "build/integration/tests/test_install_dependencies.py": {
         "build/integration/install-dependencies.py",
     },
