@@ -1,0 +1,98 @@
+# SPDX-FileCopyrightText: 2026 Claus-Justus Heine
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Server distribution tarball
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or commit to package (default: the selected branch)'
+        required: false
+        type: string
+      retention-days:
+        description: Days to keep the artifact
+        required: false
+        default: '30'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dist-server
+  cancel-in-progress: false
+
+jobs:
+  dist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    permissions:
+      contents: read
+      actions: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Read package.json node and npm engines version
+        uses: nextcloud-libraries/parse-package-engines-action@39fcc545a815c353dd0a3fd8fd2ef6e59fd02b92 # v0.2.0
+        id: versions
+        with:
+          fallbackNode: '^24'
+          fallbackNpm: '^11.3'
+
+      - name: Set up node ${{ steps.versions.outputs.node-version }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ steps.versions.outputs.node-version }}
+
+      - name: Set up npm ${{ steps.versions.outputs.package-manager-version }}
+        run: npm i -g 'npm@${{ steps.versions.outputs.package-manager-version }}'
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          extensions: bz2, ctype, curl, dom, fileinfo, gd, iconv, intl, json, libxml, mbstring, openssl, posix, session, simplexml, xmlreader, xmlwriter, zip, zlib
+          coverage: none
+          tools: composer
+
+      - name: Build distribution tarball
+        run: build/make-nextcloud-dist.sh "$GITHUB_WORKSPACE" "$RUNNER_TEMP/dist"
+
+      - name: Locate tarball
+        id: tarball
+        run: |
+          set -euo pipefail
+          tarball=$(ls "$RUNNER_TEMP"/dist/nextcloud-*.tar.bz2)
+          echo "path=$tarball" >> "$GITHUB_OUTPUT"
+          echo "$(basename "$tarball")" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: server-dist
+          path: |
+            ${{ steps.tarball.outputs.path }}
+            ${{ steps.tarball.outputs.path }}.sha256
+          retention-days: ${{ inputs.retention-days }}
+          if-no-files-found: error
+
+      - name: Keep only the two newest artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$GH_REPO/actions/artifacts?name=server-dist&per_page=100" \
+            --jq '.artifacts[] | select(.expired | not) | [.created_at, .id] | @tsv' \
+            | sort -r | tail -n +3 | cut -f2 \
+            | while read -r id; do
+              gh api -X DELETE "repos/$GH_REPO/actions/artifacts/$id"
+            done
