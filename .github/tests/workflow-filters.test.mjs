@@ -99,7 +99,7 @@ test('frontend sources and nested manifests select frontend checks but not PHP s
 
 test('root and build tooling changes do not fan out into application suites', () => {
 	for (const file of [
-		'update-apps.sh', 'helper.py', 'Makefile',
+		'build/update-configured-apps.sh', 'helper.py', 'Makefile',
 		'build/pack-apps.sh', 'build/pack-support-app.py',
 		'build/integration/install-dependencies.py',
 		'build/integration/tests/test_install_dependencies.py',
