@@ -4,6 +4,7 @@
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -16,7 +17,11 @@ class UpdateAppsShellTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="update-apps-")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.env = dict(os.environ, RESULT_FILE=str(self.root / "result"))
+        self.log_dir = self.root / "logs"
+        self.log_dir.mkdir()
+        self.env = dict(
+            os.environ, RESULT_FILE=str(self.root / "result"), TMPDIR=str(self.log_dir),
+        )
 
     def run_script(self, *args):
         return subprocess.run(
@@ -25,7 +30,163 @@ class UpdateAppsShellTest(unittest.TestCase):
             env=self.env,
             capture_output=True,
             text=True,
+            timeout=20,
         )
+
+    def make_build_apps(self):
+        apps = ["groupfolders", "logreader", "notifications"]
+        self.make_apps([*apps, "activity"])
+        for app in [*apps, "activity"]:
+            (self.root / "apps" / app / ".git").mkdir()
+        bin_dir = self.root / "bin"
+        bin_dir.mkdir()
+        self.env["PATH"] = f"{bin_dir}:{self.env['PATH']}"
+        self.env["TEST_ROOT"] = str(self.root)
+        git = bin_dir / "git"
+        git.write_text(
+            '#!/bin/bash\n'
+            'case "$1" in\n'
+            '  status) echo "On branch feature" ;;\n'
+            '  fetch)\n'
+            '    echo "update ${PWD##*/}" >> "$RESULT_FILE"\n'
+            '    if [ "${PWD##*/}" = "$FAIL_UPDATE" ]; then\n'
+            '      echo "fetch failed" >&2; exit 9\n'
+            '    fi ;;\n'
+            'esac\n'
+        )
+        git.chmod(0o755)
+        make = bin_dir / "make"
+        make.write_text(
+            f"#!{sys.executable}\n"
+            "import os, pathlib, sys, time\n"
+            "app = pathlib.Path.cwd().name\n"
+            "root = pathlib.Path(os.environ['TEST_ROOT'])\n"
+            "def record(event):\n"
+            "    with open(os.environ['RESULT_FILE'], 'a') as result:\n"
+            "        result.write(f'{event} {app}\\n')\n"
+            "record('start')\n"
+            "(root / (app + '.started')).touch()\n"
+            "for peer in os.environ.get('BARRIER_APPS', '').split():\n"
+            "    deadline = time.monotonic() + 5\n"
+            "    while not (root / (peer + '.started')).exists():\n"
+            "        if time.monotonic() > deadline:\n"
+            "            sys.exit('parallel build did not start')\n"
+            "        time.sleep(0.01)\n"
+            "time.sleep(0.05)\n"
+            "print(f'{app} stdout: {sys.argv[1:]}')\n"
+            "print(f'{app} stderr', file=sys.stderr)\n"
+            "record('end')\n"
+            "sys.exit(7 if app == os.environ.get('FAIL_APP') else 0)\n"
+        )
+        make.chmod(0o755)
+        return apps
+
+    def test_build_defaults_to_sequential_updates_and_builds(self):
+        apps = self.make_build_apps()
+        result = self.run_script("--only", " ".join(apps), "--build")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            self.result_lines(),
+            [f"{event} {app}" for app in apps for event in ("update", "start", "end")],
+        )
+
+    def test_parallel_builds_are_bounded_and_follow_sequential_updates(self):
+        apps = self.make_build_apps()
+        self.env["BARRIER_APPS"] = " ".join(apps[:2])
+        result = self.run_script("--build", "--jobs", "2", "--only", " ".join(apps))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lines = self.result_lines()
+        self.assertEqual(lines[:3], [f"update {app}" for app in apps])
+        active = maximum = 0
+        for line in lines[3:]:
+            active += 1 if line.startswith("start ") else -1
+            maximum = max(maximum, active)
+            self.assertLessEqual(active, 2)
+        self.assertEqual((active, maximum), (0, 2))
+        self.assertEqual(list(self.log_dir.iterdir()), [])
+        self.assertLess(lines.index(f"end {apps[1]}"), lines.index(f"start {apps[2]}"))
+        for app in apps:
+            self.assertIn(f"{app} stdout", result.stdout)
+            self.assertIn(f"{app} stderr", result.stderr)
+        self.assertLess(
+            result.stdout.index(f"{apps[0]} stdout"),
+            result.stdout.index(f"*** Rebuilding {apps[1]} ***"),
+        )
+
+    def test_failed_build_drains_batch_and_stops_before_next_batch(self):
+        apps = self.make_build_apps()
+        self.env["FAIL_APP"] = apps[0]
+        self.env["BARRIER_APPS"] = " ".join(apps[:2])
+        result = self.run_script("--build", "-j2", "--only", " ".join(apps))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(f"Build failed for app {apps[0]} (exit 7)", result.stderr)
+        self.assertIn(f"end {apps[1]}", self.result_lines())
+        self.assertNotIn(f"start {apps[2]}", self.result_lines())
+        self.assertIn(f"{apps[1]} stdout", result.stdout)
+        self.assertEqual(list(self.log_dir.iterdir()), [])
+
+    def test_update_failure_does_not_start_queued_builds(self):
+        apps = self.make_build_apps()
+        self.env["FAIL_UPDATE"] = apps[1]
+        result = self.run_script("--build", "-j", "2", "--only", " ".join(apps))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("fetch failed", result.stderr)
+        self.assertEqual(self.result_lines(), [f"update {app}" for app in apps[:2]])
+
+    def test_serial_build_failure_stops_updates(self):
+        apps = self.make_build_apps()
+        self.env["FAIL_APP"] = apps[0]
+        result = self.run_script("--build", "-j", "1", "--only", " ".join(apps))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(
+            self.result_lines(), [f"{event} {apps[0]}" for event in ("update", "start", "end")]
+        )
+
+    def test_jobs_without_build_only_updates_apps(self):
+        apps = self.make_build_apps()
+        result = self.run_script("--jobs=2", "--only", " ".join(apps))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.result_lines(), [f"update {app}" for app in apps])
+
+    def test_build_selection_dev_mode_and_large_job_count(self):
+        self.make_build_apps()
+        result = self.run_script(
+            "--build", "--dev", "--jobs=999999999999999999999999",
+            "--only", "groupfolders activity logreader notifications",
+            "--exclude", "logreader notifications",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            self.result_lines(),
+            ["update groupfolders", "update activity",
+             "start groupfolders", "end groupfolders"],
+        )
+        self.make_apps(["files_archive"])
+        (self.root / "apps" / "files_archive" / ".git").mkdir()
+        result = self.run_script(
+            "--build", "--dev", "-j", "2", "--only", "files_archive",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("files_archive stdout: ['dev']", result.stdout)
+
+    def test_jobs_does_not_parallelize_shell_commands(self):
+        self.make_apps(["calendar", "contacts"])
+        result = self.run_script(
+            "--build", "--jobs", "2", "--only", "calendar contacts",
+            "--shell", 'echo "${PWD##*/}" >> "$RESULT_FILE"; exit 7',
+        )
+        self.assertEqual(result.returncode, 7)
+        self.assertEqual(self.result_lines(), ["calendar"])
+
+    def test_invalid_or_missing_jobs_are_rejected(self):
+        for value in ("0", "-1", "1.5", "abc", "", "01"):
+            with self.subTest(value=value):
+                result = self.run_script("--jobs", value, "--list")
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("expected a positive integer", result.stderr)
+        result = self.run_script("--jobs")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("requires an argument", result.stderr)
 
     def make_apps(self, apps):
         for app in apps:
