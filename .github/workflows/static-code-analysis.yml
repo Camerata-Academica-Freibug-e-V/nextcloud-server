@@ -4,34 +4,41 @@ name: Psalm static code analysis
 
 on:
   pull_request:
+    branches: [cjh-stable35]
   push:
-    branches:
-      - main
-      - master
-      - stable*
-    paths:
-      - '.github/workflows/static-code-analysis.yml'
-      - '**.php'
+    branches: [cjh-stable35]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: static-code-analysis-${{ github.head_ref || github.run_id }}
+  group: static-code-analysis-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
 
     outputs:
       src: ${{ steps.changes.outputs.src }}
 
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'push'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        if: github.event_name != 'workflow_dispatch'
         id: changes
         continue-on-error: true
         with:
+          base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
               - '.github/workflows/**'
@@ -45,13 +52,13 @@ jobs:
               - 'composer.lock'
               - 'psalm*.xml'
               - 'build/psalm-baseline*.xml'
-              - '**.php'
+              - '**/*.php'
 
   static-code-analysis:
     runs-on: ubuntu-latest
 
     needs: changes
-    if: ${{ needs.changes.outputs.src != 'false' && github.event_name != 'push' && github.repository_owner != 'nextcloud-gmbh' }}
+    if: needs.changes.outputs.src != 'false'
 
     steps:
       - name: Checkout
@@ -64,7 +71,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         timeout-minutes: 5
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           extensions: apcu,ctype,curl,dom,fileinfo,ftp,gd,imagick,intl,json,ldap,mbstring,openssl,pdo_sqlite,posix,sqlite,xml,zip
           coverage: none
         env:
@@ -84,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: changes
-    if: ${{ needs.changes.outputs.src != 'false' && github.repository_owner != 'nextcloud-gmbh' }}
+    if: needs.changes.outputs.src != 'false'
 
     permissions:
       security-events: write
@@ -100,7 +107,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         timeout-minutes: 5
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           extensions: ctype,curl,dom,fileinfo,ftp,gd,imagick,intl,json,ldap,mbstring,openssl,pdo_sqlite,posix,sqlite,xml,zip
           coverage: none
 
@@ -132,7 +139,7 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: changes
-    if: ${{ needs.changes.outputs.src != 'false' && github.event_name != 'push' && github.repository_owner != 'nextcloud-gmbh' }}
+    if: needs.changes.outputs.src != 'false'
 
     steps:
       - name: Checkout
@@ -145,7 +152,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         timeout-minutes: 5
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           extensions: ctype,curl,dom,fileinfo,gd,imagick,intl,json,mbstring,openssl,pdo_sqlite,posix,sqlite,xml,zip
           coverage: none
         env:
@@ -165,7 +172,7 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: changes
-    if: ${{ needs.changes.outputs.src != 'false' && github.event_name != 'push' && github.repository_owner != 'nextcloud-gmbh' }}
+    if: needs.changes.outputs.src != 'false'
 
     steps:
       - name: Checkout
@@ -178,7 +185,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         timeout-minutes: 5
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           extensions: ctype,curl,dom,fileinfo,gd,imagick,intl,json,mbstring,openssl,pdo_sqlite,posix,sqlite,xml,zip
           coverage: none
         env:
@@ -194,7 +201,7 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: changes
-    if: ${{ needs.changes.outputs.src != 'false' && github.event_name != 'push' && github.repository_owner != 'nextcloud-gmbh' }}
+    if: needs.changes.outputs.src != 'false'
 
     steps:
       - name: Checkout
@@ -206,7 +213,7 @@ jobs:
       - name: Set up php
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           extensions: ctype,curl,dom,fileinfo,gd,imagick,intl,json,mbstring,openssl,pdo_sqlite,posix,sqlite,xml,zip
           coverage: none
         env:
@@ -233,12 +240,10 @@ jobs:
         run: |
           if ${{ needs.changes.outputs.src != 'false' && (
             needs.static-code-analysis-security.result != 'success' ||
-            (github.event_name != 'push' && (
-              needs.static-code-analysis.result != 'success' ||
-              needs.static-code-analysis-ocp.result != 'success' ||
-              needs.static-code-analysis-ncu.result != 'success' ||
-              needs.static-code-analysis-strict.result != 'success'
-            ))
+            needs.static-code-analysis.result != 'success' ||
+            needs.static-code-analysis-ocp.result != 'success' ||
+            needs.static-code-analysis-ncu.result != 'success' ||
+            needs.static-code-analysis-strict.result != 'success'
           ) }}; then
             exit 1
           fi

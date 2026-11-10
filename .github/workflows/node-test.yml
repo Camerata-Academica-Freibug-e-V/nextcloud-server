@@ -10,14 +10,16 @@ name: Node tests
 
 on:
   pull_request:
-  schedule:
-    - cron: "5 2 * * *"
+    branches: [cjh-stable35]
+  push:
+    branches: [cjh-stable35]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: node-tests-${{ github.head_ref || github.run_id }}
+  group: node-tests-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -31,10 +33,18 @@ jobs:
       src: ${{ steps.changes.outputs.src}}
 
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'push'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        if: github.event_name != 'workflow_dispatch'
         id: changes
         continue-on-error: true
         with:
+          base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
               - '.github/workflows/**'
@@ -46,9 +56,12 @@ jobs:
               - 'package.json'
               - '**/package-lock.json'
               - 'tsconfig.json'
-              - '**.js'
-              - '**.ts'
-              - '**.vue'
+              - '**/*.js'
+              - '**/*.mjs'
+              - '**/*.cjs'
+              - '**/*.ts'
+              - '**/*.mts'
+              - '**/*.vue'
 
   test:
     runs-on: ubuntu-latest
@@ -83,13 +96,8 @@ jobs:
         run: |
           npm ci
 
-      - name: Test and process coverage
-        run: npm run test:coverage
-
-      - name: Collect coverage
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-        with:
-          files: ./coverage/lcov.info,./coverage/legacy/lcov.info
+      - name: Test
+        run: npm test
 
   summary:
     permissions:

@@ -8,13 +8,18 @@
 
 name: Build Javascript
 
-on: pull_request
+on:
+  pull_request:
+    branches: [cjh-stable35]
+  push:
+    branches: [cjh-stable35]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: node-${{ github.head_ref || github.run_id }}
+  group: node-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,10 +33,18 @@ jobs:
       src: ${{ steps.changes.outputs.src}}
 
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'push'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        if: github.event_name != 'workflow_dispatch'
         id: changes
         continue-on-error: true
         with:
+          base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
               - '.github/workflows/**'
@@ -40,9 +53,15 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - 'tsconfig.json'
-              - '**.js'
-              - '**.ts'
-              - '**.vue'
+              - '**/*.js'
+              - '**/*.mjs'
+              - '**/*.cjs'
+              - '**/*.ts'
+              - '**/*.mts'
+              - '**/*.vue'
+              - '**/*.css'
+              - '**/*.scss'
+              - 'build/**'
 
   build:
     runs-on: ubuntu-latest
@@ -85,18 +104,6 @@ jobs:
         run: |
           npm ci
           npm run build --if-present
-
-      # Not used as we compile on CI, see update-node-dist.yml and node-dist-unchanged.yml
-      # - name: Check build changes
-      #   run: |
-      #     bash -c "[[ ! \"`git status --porcelain `\" ]] || (echo 'Please recompile and commit the assets, see the section \"Show changes on failure\" for details' && exit 1)"
-
-      # - name: Show changes on failure
-      #   if: failure()
-      #   run: |
-      #     git status
-      #     git --no-pager diff
-      #     exit 1 # make it red to grab attention
 
   summary:
     permissions:

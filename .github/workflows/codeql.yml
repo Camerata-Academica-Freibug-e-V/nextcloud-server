@@ -5,11 +5,37 @@ name: "CodeQL Advanced"
 
 on:
   push:
-    branches: [ "master", "stable*" ]
+    branches: [cjh-stable35]
+    paths:
+      - '.github/**'
+      - '**/*.js'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - '**/*.ts'
+      - '**/*.mts'
+      - '**/*.vue'
+      - '**/package*.json'
   pull_request:
-    branches: [ "master", "stable*" ]
+    branches: [cjh-stable35]
+    paths:
+      - '.github/**'
+      - '**/*.js'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - '**/*.ts'
+      - '**/*.mts'
+      - '**/*.vue'
+      - '**/package*.json'
   schedule:
     - cron: '28 18 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   analyze:
