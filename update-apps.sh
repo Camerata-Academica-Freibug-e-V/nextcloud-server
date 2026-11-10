@@ -57,6 +57,8 @@ ALL_APPS="
 CORE_BRANCH=stable35
 
 BUILD=false
+JOBS=1
+BUILD_APPS=()
 CHECKOUT=false
 BUILD_MODE=build
 PUSH=false
@@ -186,7 +188,7 @@ SUBREPO_APPS=(
 NCDIR=$(realpath .)
 CMD=$(basename "$0")
 
-VALID_ARGS=$(getopt -o bldhre:o:s --long help,build,list,dev,only:,exclude:,rebase,status,push,reset,checkout,shell: -- "$@")
+VALID_ARGS=$(getopt -o bldhrj:e:o:s --long help,build,jobs:,list,dev,only:,exclude:,rebase,status,push,reset,checkout,shell: -- "$@")
 # shellcheck disable=SC2181
 if [[ $? -ne 0 ]]; then
     exit 1;
@@ -202,6 +204,7 @@ Usage: $CMD [OPTIONS]
 Options:
   -h, --help              Show this help and exit
   -b, --build             Build apps with their configured build command
+  -j, --jobs N            Run up to N app builds concurrently (default: 1; only with --build)
   -l, --list              List selected apps and exit
   -d, --dev               Use development build mode
   -o, --only APPS         Select space-separated app names (or "subrepo")
@@ -212,6 +215,10 @@ Options:
       --reset             Hard-reset apps only when tracking the configured branch
       --checkout          Check out configured app branches
       --shell COMMAND     Run a Bash command in each selected app directory
+
+With --jobs greater than 1, all sequential app updates finish before builds
+start. Build output is grouped per app. A failed batch is drained before
+exiting nonzero; no later batches are started.
 EOF
       exit 0
       ;;
@@ -222,6 +229,14 @@ EOF
     -b|--build)
       BUILD=true
       shift
+      ;;
+    -j|--jobs)
+      [[ $2 =~ ^[1-9][0-9]*$ ]] || {
+          echo "invalid job count: $2 (expected a positive integer)" >&2
+          exit 2
+      }
+      JOBS=$2
+      shift 2
       ;;
     -d|--dev)
       BUILD_MODE=dev
@@ -297,6 +312,18 @@ function setTitle
     else
         echo -ne "\033]2;\007"
     fi
+}
+
+function buildApp
+{
+    local APP=$1
+    echo "*** Rebuilding $APP ***"
+    echo "Running ${BUILD_COMMANDS[$APP]}"
+    { eval "${BUILD_COMMANDS[$APP]}"; } || {
+        local RESULT=$?
+        echo "Build failed for app $APP (exit $RESULT)" >&2
+        return "$RESULT"
+    }
 }
 
 if $LIST; then
@@ -442,15 +469,52 @@ for APP in $APPS; do
         git rebase "${REBASE_BRANCHES[$APP]}" || exit 1
     fi
     if $BUILD && [ -n "${BUILD_COMMANDS[$APP]}" ]; then
-        setTitle "$APP (build)"
-        echo "*** Rebuilding $APP ***"
-        echo "Running ${BUILD_COMMANDS[$APP]}"
-        { eval "${BUILD_COMMANDS[$APP]}"; } || exit 1
+        if [ "$JOBS" = 1 ]; then
+            setTitle "$APP (build)"
+            buildApp "$APP" || exit 1
+        else
+            BUILD_APPS+=("$APP")
+        fi
     fi
     echo
     setTitle
     cd "$NCDIR" || exit 1
 done
+
+if [ "${#BUILD_APPS[@]}" -gt 0 ]; then
+    BUILD_LOG_DIR=$(mktemp -d) || exit 1
+    trap 'wait; rm -rf -- "$BUILD_LOG_DIR"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    # Cap before arithmetic so even very large positive job counts are safe.
+    MAX_JOBS=${#BUILD_APPS[@]}
+    if [[ ${#JOBS} -gt ${#MAX_JOBS} || ( ${#JOBS} -eq ${#MAX_JOBS} && $JOBS > $MAX_JOBS ) ]]; then
+        JOBS=$MAX_JOBS
+    fi
+    for ((OFFSET = 0; OFFSET < ${#BUILD_APPS[@]}; OFFSET += JOBS)); do
+        BATCH=("${BUILD_APPS[@]:OFFSET:JOBS}")
+        PIDS=()
+        for INDEX in "${!BATCH[@]}"; do
+            APP=${BATCH[$INDEX]}
+            (
+                cd "$NCDIR/apps/$APP" || exit 1
+                buildApp "$APP"
+            ) >"$BUILD_LOG_DIR/$INDEX.stdout" 2>"$BUILD_LOG_DIR/$INDEX.stderr" &
+            PIDS+=("$!")
+        done
+        BATCH_FAILED=false
+        for INDEX in "${!BATCH[@]}"; do
+            if ! wait "${PIDS[$INDEX]}"; then
+                BATCH_FAILED=true
+            fi
+            cat "$BUILD_LOG_DIR/$INDEX.stdout" || exit 1
+            cat "$BUILD_LOG_DIR/$INDEX.stderr" >&2 || exit 1
+        done
+        if $BATCH_FAILED; then
+            exit 1
+        fi
+    done
+fi
 
 for x in "${!ATTENTION[@]}"; do
     printf "[%s]=%s\n" "$x" "${ATTENTION[$x]}"
