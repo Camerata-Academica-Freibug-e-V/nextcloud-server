@@ -132,6 +132,15 @@ class UpdateAppsShellTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("Updating", result.stdout)
 
+    def test_help_options_print_usage_and_exit(self):
+        for option in ("-h", "--help"):
+            with self.subTest(option=option):
+                result = self.run_script(option)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("Usage: update-apps.sh [OPTIONS]", result.stdout)
+                self.assertIn("-h, --help", result.stdout)
+                self.assertIn("--shell COMMAND", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
