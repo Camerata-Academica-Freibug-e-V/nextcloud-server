@@ -58,10 +58,11 @@ class SupportTest(unittest.TestCase):
             PACK.repack(source, checksum, output)
             with tarfile.open(output, "r:xz") as archive:
                 names = archive.getnames()
-                self.assertIn("support/appinfo/info.xml", names)
-                self.assertEqual(archive.extractfile("support/COPYING").read(),
+                self.assertIn("nextcloud/apps/support/appinfo/info.xml", names)
+                self.assertEqual(archive.extractfile("nextcloud/apps/support/COPYING").read(),
                                  b"nextcloud/apps/support/COPYING")
-                self.assertTrue(all(name == "support" or name.startswith("support/")
+                self.assertTrue(all(name == "nextcloud/apps/support"
+                                    or name.startswith("nextcloud/apps/support/")
                                     for name in names))
             self.assertEqual(output.with_name(output.name + ".sha256").read_text(),
                              f"{hashlib.sha256(output.read_bytes()).hexdigest()}  {output.name}\n")
