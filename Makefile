@@ -89,7 +89,11 @@ DISTDIR := $(WORKDIR)/$(shell date +%Y-%m-%d)
 
 OVERRIDE_CMDS := --build-command="richdocuments=krankerl package"
 
-distribution:
+.PHONY: distribution-support
+distribution-support:
+	python3 "$(TOOLDIR)/pack-support-app.py" "$(SRCDIR)" "$(DISTDIR)"
+
+distribution: distribution-support
 	mkdir -p $(DISTDIR)
 	git checkout $(SRCDIR)/config/CAN_INSTALL || true
 # server package
