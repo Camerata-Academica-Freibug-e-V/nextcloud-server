@@ -67,7 +67,7 @@ def repack(source, checksum, output):
         support = root / "nextcloud/apps/support"
         # Keep upstream sources, license files and metadata verbatim.
         with tarfile.open(root / "support.tar.xz", "w:xz") as archive:
-            archive.add(support, arcname="support")
+            archive.add(support, arcname="nextcloud/apps/support")
         output.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(root / "support.tar.xz"), output)
     with output.open("rb") as stream:
@@ -80,7 +80,7 @@ def main():
         description=(
             __doc__ + " Uses the exact stable version from version.php or the newest "
             "older patch in the same major/minor series; prereleases are not selected. "
-            "Writes support-nextcloud-VERSION.tar.xz (top-level support/) and its "
+            "Writes support-nextcloud-VERSION.tar.xz (paths nextcloud/apps/support/) and its "
             "SHA256 checksum, preserving the upstream app's licenses and metadata."
         ),
         epilog="Requires PHP and Python 3.12+. No app build or Nextcloud installation is needed.",
