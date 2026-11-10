@@ -95,7 +95,7 @@ class SelectionTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stderr, "")
         self.assertIn("[pack] wrote ", result.stdout)
-        with tarfile.open(self.root / "out.tgz") as archive:
+        with tarfile.open(self.root / "out.tgz", mode="r:xz") as archive:
             return {
                 name.split("/")[1]
                 for name in archive.getnames()
@@ -146,15 +146,17 @@ class SelectionTest(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(
-                    f"to {self.root}/apps-20261109-203119{suffix}.tar.gz", result.stdout
+                    f"to {self.root}/apps-20261109-203119{suffix}.tar.xz", result.stdout
                 )
-                self.assertEqual(list(self.root.glob("*.tar.gz")), [])
+                self.assertEqual(list(self.root.glob("*.tar.xz")), [])
         result = subprocess.run(
             ["bash", str(SCRIPT), "-n", "--only", "calendar"],
             cwd=self.root, env=self.env, text=True, capture_output=True,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        with tarfile.open(self.root / "apps-20261109-203119-only-calendar.tar.gz") as archive:
+        with tarfile.open(
+            self.root / "apps-20261109-203119-only-calendar.tar.xz", mode="r:xz"
+        ) as archive:
             self.assertIn("apps/calendar/appinfo/info.xml", archive.getnames())
         self.assertIn(
             f"to {self.root}/out.tgz", self.run_dry("--only", ":no-legacy")
@@ -165,7 +167,7 @@ class SelectionTest(unittest.TestCase):
         date.write_text("#!/bin/sh\nprintf '20261109-203119\\n'\n")
         date.chmod(0o755)
         target = self.root / "dist/sub"
-        name = "apps-20261109-203119-only-calendar.tar.gz"
+        name = "apps-20261109-203119-only-calendar.tar.xz"
         dry = subprocess.run(
             ["bash", str(SCRIPT), "--dry-run", "-d", str(target), "--only", "calendar"],
             cwd=self.root, env=self.env, text=True, capture_output=True,
@@ -485,6 +487,32 @@ class SelectionTest(unittest.TestCase):
                 self.assertIn("custom build command failed", result.stderr)
                 self.assertFalse((self.root / "apps/calendar/must-not-run").exists())
                 self.assertFalse((self.root / "failed.tgz").exists())
+
+    def test_distribution_archive_formats(self):
+        for extension, flag in (
+            ("tar", ""), ("tar.gz", "z"), ("tgz", "z"),
+            ("tar.xz", "J"), ("txz", "J"),
+            ("tar.bz2", "j"), ("tbz", "j"), ("tbz2", "j"),
+        ):
+            with self.subTest(extension=extension):
+                command = (
+                    "mkdir -p build/release/calendar/appinfo; "
+                    "cp appinfo/info.xml build/release/calendar/appinfo/; "
+                    f"tar -c{flag}f build/calendar.{extension} -C build/release calendar; "
+                    # A newer non-archive must not be picked up.
+                    "printf not-an-archive > build/calendar.tar.zip"
+                )
+                result = subprocess.run(
+                    ["bash", str(SCRIPT), "-i", "calendar", "--build-command",
+                     f"calendar={command}", "-o", "formats.tar.xz"],
+                    cwd=self.root, env=self.env, text=True, capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(f"using {self.root}/apps/calendar/build/calendar.{extension}",
+                              result.stdout)
+                with tarfile.open(self.root / "formats.tar.xz", mode="r:xz") as archive:
+                    self.assertIn("apps/calendar/appinfo/info.xml", archive.getnames())
+                (self.root / f"apps/calendar/build/calendar.{extension}").unlink()
 
     def test_make_target_override_creates_distribution_archive(self):
         (self.root / "apps/calendar/Makefile").write_text(
