@@ -114,7 +114,13 @@ jobs:
 
       - name: Set up dependencies
         run: |
-          composer install
+          for attempt in 1 2 3; do
+            composer install && break
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 15))
+          done
 
       - name: Set up Nextcloud
         run: |
