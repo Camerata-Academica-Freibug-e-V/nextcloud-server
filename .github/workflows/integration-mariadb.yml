@@ -104,6 +104,7 @@ jobs:
         timeout-minutes: 5
         with:
           php-version: ${{ matrix.php-versions }}
+          tools: composer:2.11.1
           # https://docs.nextcloud.com/server/stable/admin_manual/installation/source_installation.html#prerequisites-for-manual-installation
           extensions: bz2, ctype, curl, dom, fileinfo, gd, iconv, imagick, intl, json, ldap, libxml, mbstring, mysql, openssl, pcntl, pdo_mysql, posix, session, simplexml, xmlreader, xmlwriter, zip, zlib
           coverage: none
@@ -113,8 +114,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up dependencies
+        timeout-minutes: 20
+        env:
+          COMPOSER_MAX_PARALLEL_HTTP: 4
         run: |
-          composer install
+          python3 -m unittest discover -s build/integration/tests -p 'test_install_dependencies.py'
+          python3 build/integration/install-dependencies.py
 
       - name: Set up Nextcloud
         run: |
