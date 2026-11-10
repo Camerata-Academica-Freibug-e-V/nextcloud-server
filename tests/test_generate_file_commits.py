@@ -55,9 +55,9 @@ class GenerateFileCommitsTest(unittest.TestCase):
             f'=HYPERLINK("https://github.com/owner/repository/blob/{second}/a%3B%20%22file%22.txt";"a; ""file"".txt")',
             *[
                 f'=HYPERLINK("https://github.com/owner/repository/commit/{commit}";"{subject}")'
-                for commit, subject in sorted([
-                    (first, "add"), (second, "update"), (deleted, "delete"),
-                ])
+                for commit, subject in [
+                    (first, "add"), (deleted, "delete"), (second, "update"),
+                ]
             ],
         ]])
 
@@ -86,12 +86,24 @@ class GenerateFileCommitsTest(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         for row, changes in [
             (rows[0], [(main, "main"), (merge, "merge")]),
-            (rows[1], [(side, "side"), (merge, "merge")]),
+            (rows[1], [(merge, "merge"), (side, "side")]),
         ]:
             self.assertEqual(row[1:], [
                 f'=HYPERLINK("https://github.com/owner/repository/commit/{commit}";"{subject}")'
-                for commit, subject in sorted(changes)
+                for commit, subject in changes
             ])
+
+    def test_identical_subjects_are_sorted_by_hash(self):
+        path = self.directory / "file.txt"
+        path.write_text("first")
+        first = self.commit("same subject")
+        path.write_text("second")
+        second = self.commit("same subject")
+        rows = self.rows()
+        self.assertEqual(rows[0][1:], [
+            f'=HYPERLINK("https://github.com/owner/repository/commit/{commit}";"same subject")'
+            for commit in sorted([first, second])
+        ])
 
     def test_subject_formula_characters_are_quoted(self):
         (self.directory / "file.txt").write_text("content")
@@ -129,6 +141,7 @@ class GenerateFileCommitsTest(unittest.TestCase):
         self.assertIn("OWNER/REPO#TARGET_BRANCH", help_text)
         self.assertIn("semicolon separator", help_text)
         self.assertIn("nextcloud/server#stable35", help_text)
+        self.assertIn("sorted by subject line", help_text)
         self.assertIn("commit hash", help_text)
         self.assertIn("Evaluate formulas", help_text)
 
