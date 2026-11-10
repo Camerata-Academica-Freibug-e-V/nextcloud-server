@@ -5,17 +5,18 @@ name: PHPUnit
 
 on:
   pull_request:
-  schedule:
-    - cron: "5 2 * * *"
+    branches: [cjh-stable35]
+  push:
+    branches: [cjh-stable35]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: phpunit-${{ github.head_ref || github.run_id }}
+  group: phpunit-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
-# GitHub allows a maximum of 20 reusable workflows per caller
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -26,13 +27,20 @@ jobs:
     outputs:
       src: ${{ steps.changes.outputs.src }}
       resources: ${{ steps.changes.outputs.resources }}
-      kvstore: ${{ steps.changes.outputs.kvstore }}
 
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'push'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        if: github.event_name != 'workflow_dispatch'
         id: changes
         continue-on-error: true
         with:
+          base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
               - '.github/workflows/**'
@@ -46,65 +54,20 @@ jobs:
               - '.php-cs-fixer.dist.php'
               - 'composer.json'
               - 'composer.lock'
-              - '**.php'
+              - '**/*.php'
             resources:
               - 'resources/**'
-            kvstore:
-              - '.github/workflows/phpunit-kvstore.yml'
-              - '3rdparty/**'
-              - '**/appinfo/**'
-              - '**.php'
 
   mariadb:
     needs: changes
-    if: needs.changes.outputs.src != 'false'
-    uses: ./.github/workflows/phpunit-mariadb.yml
-
-  memcached:
-    needs: changes
-    if: needs.changes.outputs.src != 'false'
-    uses: ./.github/workflows/phpunit-memcached.yml
-
-  mysql:
-    needs: changes
-    if: needs.changes.outputs.src != 'false'
-    uses: ./.github/workflows/phpunit-mysql.yml
-
-  mysql-sharding:
-    needs: changes
-    if: needs.changes.outputs.src != 'false'
-    uses: ./.github/workflows/phpunit-mysql-sharding.yml
-
-  object-store-primary:
-    needs: changes
-    if: needs.changes.outputs.src != 'false'
-    uses: ./.github/workflows/phpunit-object-store-primary.yml
-
-  pgsql:
-    needs: changes
-    if: needs.changes.outputs.src != 'false'
-    uses: ./.github/workflows/phpunit-pgsql.yml
-
-  sqlite:
-    needs: changes
-    if: ${{ false }}
-    uses: ./.github/workflows/phpunit-sqlite.yml
-
-  nodb:
-    needs: changes
     if: needs.changes.outputs.src != 'false' || needs.changes.outputs.resources != 'false'
-    uses: ./.github/workflows/phpunit-nodb.yml
-
-  kvstore:
-    needs: changes
-    if: needs.changes.outputs.kvstore != 'false'
-    uses: ./.github/workflows/phpunit-kvstore.yml
+    uses: ./.github/workflows/phpunit-mariadb.yml
 
   summary:
     permissions:
       contents: none
     runs-on: ubuntu-latest
-    needs: [changes, mariadb, memcached, mysql, mysql-sharding, object-store-primary, pgsql, sqlite, nodb, kvstore]
+    needs: [changes, mariadb]
 
     if: always()
 
