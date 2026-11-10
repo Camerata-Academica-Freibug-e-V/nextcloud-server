@@ -47,21 +47,18 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
-              - '.github/workflows/**'
-              - '**/__tests__/**'
-              - '**/__mocks__/**'
-              - 'apps/*/src/**'
+              - '.github/workflows/node-test.yml'
               - 'apps/*/appinfo/info.xml'
-              - 'core/src/**'
-              - 'package.json'
+              - '**/package.json'
               - '**/package-lock.json'
-              - 'tsconfig.json'
-              - '**/*.js'
-              - '**/*.mjs'
-              - '**/*.cjs'
-              - '**/*.ts'
-              - '**/*.mts'
-              - '**/*.vue'
+              - '**/tsconfig.json'
+              - '*.{js,mjs,cjs,ts,mts,vue}'
+              - 'apps/**/*.{js,mjs,cjs,ts,mts,vue}'
+              - 'core/**/*.{js,mjs,cjs,ts,mts,vue}'
+              - 'apps/*/src/**/*.{json,snap}'
+              - 'core/src/**/*.{json,snap}'
+              - 'build/frontend/**/*.{js,mjs,cjs,ts,mts,vue}'
+              - 'build/frontend-legacy/**/*.{js,mjs,cjs,ts,mts,vue}'
 
   test:
     runs-on: ubuntu-latest

@@ -43,17 +43,17 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
-              - '.github/workflows/**'
+              - '.github/workflows/phpunit.yml'
+              - '.github/workflows/phpunit-mariadb.yml'
               - '3rdparty/**'
-              - '**/appinfo/**'
-              - '**/lib/**'
-              - '**/templates/**'
-              - '**/tests/**'
-              - 'vendor/**'
-              - 'vendor-bin/**'
-              - '.php-cs-fixer.dist.php'
-              - 'composer.json'
-              - 'composer.lock'
+              - '**/appinfo/info.xml'
+              - '**/composer.json'
+              - '**/composer.lock'
+              - 'tests/*.xml'
+              - 'tests/**/data/**'
+              - 'apps/*/tests/**/data/**'
+              - 'apps/*/tests/**/fixtures/**'
+              - 'apps/*/tests/**/test_fixtures/**'
               - '**/*.php'
             resources:
               - 'resources/**'

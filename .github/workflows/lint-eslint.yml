@@ -47,20 +47,20 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || github.ref }}
           filters: |
             src:
-              - '.github/workflows/**'
-              - '**/src/**'
+              - '.github/workflows/lint-eslint.yml'
               - '**/appinfo/info.xml'
-              - 'package.json'
-              - 'package-lock.json'
-              - 'tsconfig.json'
+              - '**/package.json'
+              - '**/package-lock.json'
+              - '**/tsconfig.json'
               - '.eslintrc.*'
               - '.eslintignore'
-              - '**/*.js'
-              - '**/*.mjs'
-              - '**/*.cjs'
-              - '**/*.ts'
-              - '**/*.mts'
-              - '**/*.vue'
+              - 'build/eslint-baseline*.json'
+              - '*.{js,mjs,cjs,ts,mts,vue}'
+              - 'apps/**/*.{js,mjs,cjs,ts,mts,vue}'
+              - 'core/**/*.{js,mjs,cjs,ts,mts,vue}'
+              - 'tests/playwright/**/*.{js,mjs,cjs,ts,mts,vue}'
+              - 'build/frontend/**/*.{js,mjs,cjs,ts,mts,vue}'
+              - 'build/frontend-legacy/**/*.{js,mjs,cjs,ts,mts,vue}'
 
   lint:
     runs-on: ubuntu-latest

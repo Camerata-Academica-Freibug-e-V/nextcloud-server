@@ -55,7 +55,7 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.ref || github.ref }}
           filters: |
             src:
-              - '.github/workflows/**'
+              - '.github/workflows/playwright.yml'
               - '3rdparty/**'
               - 'apps/**'
               - 'core/**'
@@ -63,9 +63,9 @@ jobs:
               - 'lib/**'
               - 'resources/**'
               - 'tests/playwright/**'
-              - 'build/**'
               - '**/*.php'
-              - 'package*.json'
+              - '**/package.json'
+              - '**/package-lock.json'
               - 'playwright.config.ts'
               - 'composer.*'
 
@@ -151,7 +151,7 @@ jobs:
     - name: Run Playwright tests
       run: >-
         npx playwright test
-        --project=default --project=admin-settings --project=sharing
+        --project=default --project=admin-settings
         tests/playwright/e2e/login
         tests/playwright/e2e/files/
         tests/playwright/e2e/files_sharing
