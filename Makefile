@@ -88,7 +88,7 @@ WORKDIR := $(SRCDIR)/tmp
 DISTDIR := $(WORKDIR)/$(shell date +%Y-%m-%d)
 DISTPAR := 1
 # Optional server tarball cache, verified against upstream SHA256 on each run.
-SUPPORT_CACHE ?=
+SUPPORT_CACHE ?= $(WORKDIR)
 
 OVERRIDE_CMDS := --build-command="richdocuments=krankerl package"
 
