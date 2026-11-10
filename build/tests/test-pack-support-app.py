@@ -163,15 +163,20 @@ class SupportTest(unittest.TestCase):
                     self.assertFalse((root / "dist").exists())
 
     def test_make_cache_option(self):
-        for cache in ("", "cache folder"):
+        for cache in (None, "", "cache folder"):
             with self.subTest(cache=cache):
+                variables = ["WORKDIR=work folder", "DISTDIR=dist"]
+                if cache is not None:
+                    variables.append(f"SUPPORT_CACHE={cache}")
                 command = subprocess.check_output(
                     ["make", "--no-print-directory", "-n", "distribution-support",
-                     f"SUPPORT_CACHE={cache}", "DISTDIR=dist"],
+                     *variables],
                     cwd=Path(__file__).resolve().parents[2], text=True,
                 )
                 args = shlex.split(command)
-                if cache:
+                if cache is None:
+                    self.assertEqual(args[-2:], ["--use-cache", "work folder"])
+                elif cache:
                     self.assertEqual(args[-2:], ["--use-cache", cache])
                 else:
                     self.assertNotIn("--use-cache", args)
