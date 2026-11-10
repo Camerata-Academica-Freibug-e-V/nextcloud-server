@@ -327,6 +327,57 @@ class SelectionTest(unittest.TestCase):
                 self.run_pack(*args, success=False)
         self.assertEqual(self.run_pack("--only="), set())
 
+    def test_jobs_limit_parallel_builds(self):
+        helper = self.root / "build-helper.py"
+        helper.write_text(
+            "import fcntl, io, pathlib, sys, tarfile, time\n"
+            "root = pathlib.Path(sys.argv[1])\n"
+            "app = sys.argv[2]\n"
+            "with (root / 'counter').open('a+') as lock:\n"
+            "    fcntl.flock(lock, fcntl.LOCK_EX)\n"
+            "    lock.seek(0)\n"
+            "    active = int(lock.read() or '0') + 1\n"
+            "    lock.seek(0); lock.truncate(); lock.write(str(active)); lock.flush()\n"
+            "    maximum = root / 'maximum'\n"
+            "    maximum.write_text(str(max(int(maximum.read_text() or '0') if maximum.exists() else 0, active)))\n"
+            "time.sleep(0.15)\n"
+            "with (root / 'counter').open('a+') as lock:\n"
+            "    fcntl.flock(lock, fcntl.LOCK_EX)\n"
+            "    lock.seek(0)\n"
+            "    active = int(lock.read()) - 1\n"
+            "    lock.seek(0); lock.truncate(); lock.write(str(active)); lock.flush()\n"
+            "archive = pathlib.Path('build') / 'dist.tar.gz'\n"
+            "archive.parent.mkdir(exist_ok=True)\n"
+            "with tarfile.open(archive, 'w:gz') as tar:\n"
+            "    data = b'<info/>'\n"
+            "    info = tarfile.TarInfo(app + '/appinfo/info.xml')\n"
+            "    info.size = len(data)\n"
+            "    tar.addfile(info, io.BytesIO(data))\n"
+        )
+        command = f"python3 {helper} {self.root}"
+        result = subprocess.run(
+            [
+                "bash", str(SCRIPT), "-j", "2", "-i", "calendar,disabled,legacy",
+                "--build-command", f"calendar={command} calendar",
+                "--build-command", f"disabled={command} disabled",
+                "--build-command", f"legacy={command} legacy",
+                "-o", "parallel.tar.xz",
+            ],
+            cwd=self.root, env=self.env, text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.root / "maximum").read_text(), "2")
+        with tarfile.open(self.root / "parallel.tar.xz", mode="r:xz") as archive:
+            self.assertIn("apps/calendar/appinfo/info.xml", archive.getnames())
+            self.assertIn("apps/disabled/appinfo/info.xml", archive.getnames())
+            self.assertIn("apps/legacy/appinfo/info.xml", archive.getnames())
+
+    def test_jobs_must_be_positive_integers(self):
+        for args in (("-j", "0"), ("--jobs", "-1"), ("--jobs=abc",), ("-j0",)):
+            with self.subTest(args=args):
+                result = self.run_pack(*args, success=False)
+                self.assertIn("invalid job count", result.stderr)
+
     def test_continue_archive_obeys_current_selection(self):
         self.assertEqual(
             self.run_pack("-s", "stage", "-x", ":no-server"),
