@@ -184,8 +184,9 @@ SUBREPO_APPS=(
 )
 
 NCDIR=$(realpath .)
+CMD=$(basename "$0")
 
-VALID_ARGS=$(getopt -o bldre:o:s --long build,list,dev,only:,exclude:,rebase,status,push,reset,checkout,shell: -- "$@")
+VALID_ARGS=$(getopt -o bldhre:o:s --long help,build,list,dev,only:,exclude:,rebase,status,push,reset,checkout,shell: -- "$@")
 # shellcheck disable=SC2181
 if [[ $? -ne 0 ]]; then
     exit 1;
@@ -194,6 +195,26 @@ fi
 eval set -- "$VALID_ARGS"
 while true; do
   case "$1" in
+    -h|--help)
+      cat <<EOF
+Usage: $CMD [OPTIONS]
+
+Options:
+  -h, --help              Show this help and exit
+  -b, --build             Build apps with their configured build command
+  -l, --list              List selected apps and exit
+  -d, --dev               Use development build mode
+  -o, --only APPS         Select space-separated app names (or "subrepo")
+  -e, --exclude APPS      Exclude space-separated app names (or "subrepo")
+  -r, --rebase            Rebase apps with configured rebase branches
+  -s, --status            Report apps with diverged branches
+      --push              Push app branches
+      --reset             Hard-reset apps to their configured branches
+      --checkout          Check out configured app branches
+      --shell COMMAND     Run a Bash command in each selected app directory
+EOF
+      exit 0
+      ;;
     -l|--list)
       LIST=true
       shift
@@ -268,7 +289,6 @@ fi
 declare -A ATTENTION
 
 SHORT_PWD=$(basename "$(pwd)")
-CMD=$(basename "$0")
 
 function setTitle
 {
