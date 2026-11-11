@@ -27,7 +27,6 @@ ALL_APPS="
  files_lock
  files_pdfviewer
  files_texteditor
- groupfolders
  ldap_write_support
  logreader
  mail
@@ -84,7 +83,6 @@ BUILD_COMMANDS=(
     [emlviewer]="npm install && make"
     [files_archive]="make \$BUILD_MODE"
     [files_lock]="rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && npm ci --legacy-peer-deps && npm run build"
-    [groupfolders]="make"
     [ldap_write_support]="run-krankerl.sh"
     [logreader]="make"
     [mail]="make install-deps optimize-js"
@@ -115,7 +113,6 @@ declare -A REBASE_BRANCHES
 REBASE_BRANCHES=(
     [calendar]=origin/stable6.6
     [contacts]=origin/stable8.10
-    [groupfolders]=origin/$CORE_BRANCH
     [ldap_write_support]=origin/$CORE_BRANCH
     [logreader]=origin/$CORE_BRANCH
     [mail]=origin/stable5.13
@@ -146,7 +143,6 @@ RESET_BRANCHES=(
     [files_lock]=origin/$CORE_BRANCH
     [files_pdfviewer]=origin/$CORE_BRANCH
     [files_texteditor]=origin/master
-    [groupfolders]=cjh/production/cafevdb/$CORE_BRANCH
     [ldap_write_support]=cjh/production/cafevdb/$CORE_BRANCH
     [logreader]=cjh/production/cafevdb/$CORE_BRANCH
     [mail]=cjh/feature/stable5.13/provision-additional-email-addresses
@@ -425,8 +421,8 @@ for APP in $APPS; do
                 ;;
             stable*)
                 setTitle "$APP (git checkout $STABLE_BRANCH)"
-                echo "Updating to $STABLE_BRANCH"
-                git checkout "$STABLE_BRANCH"
+                echo "Updating to $BRANCH"
+                git checkout "$BRANCH"
                 ;;
         esac
     fi
