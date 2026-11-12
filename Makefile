@@ -90,27 +90,61 @@ DISTPAR := 1
 # Optional server tarball cache, verified against upstream SHA256 on each run.
 SUPPORT_CACHE ?= $(WORKDIR)
 
-OVERRIDE_CMDS := --build-command="richdocuments=krankerl package"
+OVERRIDE_CMDS := --build-command='richdocuments=krankerl package'\
+ --make-target collectives=build
+
+.PHONY: distribution-distdir
+distribution-distdir:
+	mkdir -p $(DISTDIR)
 
 .PHONY: distribution-support
-distribution-support:
+distribution-support: distribution-distdir
 	python3 "$(TOOLDIR)/pack-support-app.py" "$(SRCDIR)" "$(DISTDIR)" $(if $(SUPPORT_CACHE),--use-cache "$(SUPPORT_CACHE)")
 
-distribution: distribution-support
-	mkdir -p $(DISTDIR)
+.PHONY: distribution-core
+distribution-core: distribution-distdir
+# server package
+	git checkout $(SRCDIR)/config/CAN_INSTALL || true
+	$(TOOLDIR)/make-nextcloud-dist.sh $(SRCDIR) $(DISTDIR)
+
+.PHONY: distribution-cafevdb
+distribution-cafevdb: distribution-distdir
+	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
+	--only cafevdb,cafevdbmembers \
+	-d $(DISTDIR) \
+	-s $(DISTDIR)/apps-cafevdb \
+	$(OVERRIDE_CMDS)
+
+.PHONY: distribution-owned
+distribution-owned: distribution-distdir
+	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
+	--only "$$($(TOOLDIR)/update-configured-apps.sh --list --only subrepo)" \
+	--exclude cafevdb,cafevdbmembers \
+	-d $(DISTDIR) \
+	-s $(DISTDIR)/apps-owned \
+	$(OVERRIDE_CMDS)
+
+.PHONY: distribution-git
+distribution-git: distribution-distdir
+# git appstore apps
+	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
+	--only :enabled \
+	--exclude ":no-git :legacy $$($(TOOLDIR)/update-configured-apps.sh --list --only subrepo)" \
+	-d $(DISTDIR) \
+	-s $(DISTDIR)/apps-git \
+	$(OVERRIDE_CMDS)
+
+.PHONY: distribution-no-git
+distribution-no-git: distribution-distdir
 # appstore apps
 	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
 	--only :enabled \
 	--exclude :git \
 	-d $(DISTDIR) \
 	-s $(DISTDIR)/apps-no-git
-# git appstore apps
-	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
-	--only :enabled \
-	--exclude :no-git \
-	-d $(DISTDIR) \
-	-s $(DISTDIR)/apps-git \
-	$(OVERRIDE_CMDS)
+
+.PHONY: distribution-legacy
+distribution-legacy: distribution-distdir
 # git legacy apps (no apparant appstore target)
 	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
 	--only :enabled \
@@ -118,9 +152,9 @@ distribution: distribution-support
 	-d $(DISTDIR) \
 	-s $(DISTDIR)/apps-git-legacy \
 	$(OVERRIDE_CMDS)
-# server package
-	git checkout $(SRCDIR)/config/CAN_INSTALL || true
-	$(TOOLDIR)/make-nextcloud-dist.sh $(SRCDIR) $(DISTDIR)
+
+.PHONY: distribution
+distribution: distribution-cafevdb distribution-owned distribution-git distribution-no-git distribution-legacy distribution-core
 
 distribution-clean:
 	rm -rf $(DISTDIR)
