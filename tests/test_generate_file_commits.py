@@ -132,15 +132,139 @@ class GenerateFileCommitsTest(unittest.TestCase):
                     ("owner/repository", branch),
                 )
 
-    def test_no_arguments_shows_full_help(self):
+    def test_current_checkout_reference(self):
+        with patch(
+            "subprocess.check_output",
+            side_effect=[
+                b"review/my-branch\n",
+                b"https://github.com/owner/repository.git\n",
+            ],
+        ):
+            self.assertEqual(
+                SCRIPT["current_checkout_reference"](),
+                ("owner/repository", "review/my-branch"),
+            )
+
+    def test_default_base_follows_stable_branch_suffix(self):
+        for branch, expected in [
+            ("cjh-stable35", ("nextcloud/server", "stable35")),
+            ("feature/stable36", ("nextcloud/server", "stable36")),
+            ("review/branch", ("nextcloud/server", "stable35")),
+        ]:
+            with self.subTest(branch=branch):
+                self.assertEqual(SCRIPT["default_base_reference"](branch), expected)
+
+    def test_local_reference_uses_matching_remote_tracking_branch(self):
+        commit = self.git("rev-parse", "base")
+        self.git("remote", "add", "upstream", "https://github.com/nextcloud/server.git")
+        self.git("update-ref", "refs/remotes/upstream/stable35", commit)
+
+        self.assertEqual(
+            SCRIPT["local_reference"](self.directory, ("nextcloud/server", "stable35")),
+            "refs/remotes/upstream/stable35",
+        )
+
+    def test_local_reference_fails_when_branch_is_not_cached(self):
+        self.git("remote", "add", "upstream", "https://github.com/nextcloud/server.git")
+
+        with self.assertRaisesRegex(RuntimeError, "fetch it before using --local-only"):
+            SCRIPT["local_reference"](self.directory, ("nextcloud/server", "stable35"))
+
+    def test_no_arguments_uses_default_references(self):
+        git_calls = []
+
+        def fake_git(directory, *args):
+            git_calls.append(args)
+            return b""
+
+        git = patch.dict(SCRIPT["main"].__globals__, {
+            "git": fake_git,
+            "write_csv": lambda directory, repository, output: None,
+            "current_checkout_reference": lambda: ("owner/repository", "review/branch"),
+        })
+        with git:
+            self.assertEqual(SCRIPT["main"]([]), 0)
+
+        self.assertIn((
+            "fetch", "--quiet", "--no-tags", "--filter=blob:none",
+            "https://github.com/nextcloud/server.git",
+            "+refs/heads/stable35:refs/heads/base",
+        ), git_calls)
+        self.assertIn((
+            "fetch", "--quiet", "--no-tags", "--filter=blob:none",
+            "https://github.com/owner/repository.git",
+            "+refs/heads/review/branch:refs/heads/target",
+        ), git_calls)
+
+    def test_local_only_uses_local_refs_without_fetching(self):
+        references = []
+        written = []
+        globals_ = SCRIPT["main"].__globals__
+
+        def fake_local_reference(directory, reference):
+            references.append(reference)
+            return f"refs/remotes/cached/{reference[1]}"
+
+        with patch.dict(globals_, {
+            "current_checkout_reference": lambda: ("owner/repository", "cjh-stable35"),
+            "local_reference": fake_local_reference,
+            "write_csv": lambda *args: written.append(args),
+            "git": lambda *args: self.fail("unexpected git invocation"),
+        }):
+            self.assertEqual(SCRIPT["main"](["--local-only"]), 0)
+
+        self.assertEqual(references, [
+            ("nextcloud/server", "stable35"),
+            ("owner/repository", "cjh-stable35"),
+        ])
+        self.assertEqual(len(written), 1)
+        self.assertEqual(written[0][1], "owner/repository")
+        self.assertEqual(written[0][3:], (
+            "refs/remotes/cached/stable35",
+            "refs/remotes/cached/cjh-stable35",
+        ))
+
+    def test_explicit_references_override_defaults(self):
+        git_calls = []
+
+        def fake_git(directory, *args):
+            git_calls.append(args)
+            return b""
+
+        with patch.dict(SCRIPT["main"].__globals__, {
+            "git": fake_git,
+            "write_csv": lambda directory, repository, output: None,
+            "current_checkout_reference": lambda: self.fail("unexpected default lookup"),
+        }):
+            self.assertEqual(SCRIPT["main"]([
+                "example/base#release",
+                "example/fork#review/branch",
+            ]), 0)
+
+        self.assertIn((
+            "fetch", "--quiet", "--no-tags", "--filter=blob:none",
+            "https://github.com/example/base.git",
+            "+refs/heads/release:refs/heads/base",
+        ), git_calls)
+        self.assertIn((
+            "fetch", "--quiet", "--no-tags", "--filter=blob:none",
+            "https://github.com/example/fork.git",
+            "+refs/heads/review/branch:refs/heads/target",
+        ), git_calls)
+
+    def test_help_shows_default_references(self):
         output = io.StringIO()
-        with patch("sys.stderr", output):
-            self.assertEqual(SCRIPT["main"]([]), 2)
+        with patch("sys.stdout", output):
+            with self.assertRaises(SystemExit) as error:
+                SCRIPT["main"](["--help"])
+        self.assertEqual(error.exception.code, 0)
         help_text = output.getvalue()
         self.assertIn("OWNER/REPO#BASE_BRANCH", help_text)
         self.assertIn("OWNER/REPO#TARGET_BRANCH", help_text)
-        self.assertIn("semicolon separator", help_text)
+        self.assertIn("--local-only", help_text)
         self.assertIn("nextcloud/server#stable35", help_text)
+        self.assertIn("current checkout's origin repository and branch", help_text)
+        self.assertIn("semicolon separator", help_text)
         self.assertIn("sorted by subject line", help_text)
         self.assertIn("commit hash", help_text)
         self.assertIn("Evaluate formulas", help_text)

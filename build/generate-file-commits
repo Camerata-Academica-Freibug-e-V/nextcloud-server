@@ -31,10 +31,83 @@ def parse_reference(value):
     return repository, branch
 
 
+def github_repository_from_remote(remote):
+    match = re.fullmatch(
+        r"(?:https?://github\.com/|(?:ssh://)?git@github\.com[:/])"
+        r"([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?",
+        remote,
+    )
+    return match.group(1) if match else None
+
+
+def current_checkout_reference():
+    checkout = Path(__file__).resolve().parent.parent
+    branch = subprocess.check_output(
+        ["git", "-C", str(checkout), "branch", "--show-current"],
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+    ).decode("utf-8").strip()
+    if not branch:
+        raise RuntimeError("The current checkout is detached; specify BASE and TARGET")
+
+    remote = subprocess.check_output(
+        ["git", "-C", str(checkout), "remote", "get-url", "origin"],
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+    ).decode("utf-8").strip()
+    repository = github_repository_from_remote(remote)
+    if repository is None:
+        raise RuntimeError(f"Cannot determine GitHub repository from origin URL: {remote}")
+    return repository, branch
+
+
+def default_base_reference(target_branch):
+    match = re.search(r"(stable[0-9]+)$", target_branch)
+    return "nextcloud/server", match.group(1) if match else "stable35"
+
+
+def local_reference(directory, reference):
+    repository, branch = reference
+    git(directory, "check-ref-format", "refs/heads/" + branch)
+    remotes = git(directory, "remote").decode("utf-8").splitlines()
+    for remote in remotes:
+        url = git(directory, "remote", "get-url", remote).decode("utf-8").strip()
+        if github_repository_from_remote(url) != repository:
+            continue
+        remote_ref = f"refs/remotes/{remote}/{branch}"
+        try:
+            git(directory, "rev-parse", "--verify", "--quiet", f"{remote_ref}^{{commit}}")
+        except subprocess.CalledProcessError:
+            continue
+        return remote_ref
+
+    origin_repository = None
+    if "origin" in remotes:
+        origin = git(directory, "remote", "get-url", "origin").decode("utf-8").strip()
+        origin_repository = github_repository_from_remote(origin)
+    current_branch = git(directory, "branch", "--show-current").decode("utf-8").strip()
+    local_ref = f"refs/heads/{branch}"
+    if (
+        origin_repository == repository
+        and current_branch == branch
+    ):
+        try:
+            git(directory, "rev-parse", "--verify", "--quiet", f"{local_ref}^{{commit}}")
+        except subprocess.CalledProcessError:
+            pass
+        else:
+            return local_ref
+
+    raise RuntimeError(
+        f"No local ref for {repository}#{branch}; fetch it before using --local-only"
+    )
+
+
 def git(directory, *args):
-    git_directory = directory / ".git" if (directory / ".git").is_dir() else directory
+    if (directory / ".git").exists():
+        command = ["git", "-C", str(directory), *args]
+    else:
+        command = ["git", "--git-dir", str(directory), *args]
     return subprocess.check_output(
-        ["git", "--git-dir", str(git_directory), *args],
+        command,
         env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
     )
 
@@ -47,10 +120,10 @@ def hyperlink(url, label):
     return '=HYPERLINK("' + url.replace('"', '""') + '";"' + label.replace('"', '""') + '")'
 
 
-def write_csv(directory, repository, output):
+def write_csv(directory, repository, output, base="base", target="target"):
     """Include each range commit once per path, including merge-parent changes."""
     commits = git(
-        directory, "rev-list", "--reverse", "--topo-order", "base..target"
+        directory, "rev-list", "--reverse", "--topo-order", f"{base}..{target}"
     ).decode("ascii").splitlines()
     affected = {}
     subjects = {}
@@ -67,10 +140,10 @@ def write_csv(directory, repository, output):
             affected.setdefault(path, []).append(commit)
 
     writer = csv.writer(output, delimiter=";", lineterminator="\n")
-    target = git(directory, "rev-parse", "target").decode("ascii").strip()
+    target_commit = git(directory, "rev-parse", target).decode("ascii").strip()
     for path, changes in sorted(affected.items()):
-        revision = target
-        if not has_path(directory, target, path):
+        revision = target_commit
+        if not has_path(directory, target_commit, path):
             for commit in reversed(changes):
                 if has_path(directory, commit, path):
                     revision = commit
@@ -103,6 +176,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         description=(
             "Write a headerless CSV (semicolon separator) for BASE..TARGET. "
+            "Without arguments, BASE defaults to the matching nextcloud/server stable "
+            "branch when TARGET ends in stableXY, or stable35 otherwise, and "
+            "TARGET defaults to the current checkout's origin repository and branch. "
+            "Use --local-only to use existing local refs without network access. "
             "First column: file hyperlink labelled with its path. "
             "Each following cell: one commit hyperlink labelled with its subject. "
             "Cells contain =HYPERLINK(\"URL\";\"LABEL\") formulas. "
@@ -111,29 +188,46 @@ def main(argv=None):
             "Renames include old and new paths; merges include changes against every parent."
         ),
         epilog=(
-            "Example: build/generate-file-commits nextcloud/server#stable35 "
+            "Specify both BASE and TARGET to override the defaults, for example: "
+            "build/generate-file-commits nextcloud/server#stable35 "
             "Camerata-Academica-Freibug-e-V/nextcloud-server#"
             "review/followups-squashed-stable35 > file-commits.csv. "
-            "Requires git and network access. For private repositories configure GitHub "
-            "Git authentication first (for example, gh auth setup-git). "
-            "Fetches commit/tree history into a temporary bare repository without file blobs."
+            "By default, fetches commit/tree history into a temporary bare repository "
+            "without file blobs; GitHub authentication may be required for private repositories."
             " In LibreOffice Calc, enable Evaluate formulas during CSV import."
         ),
     )
-    parser.add_argument("base", type=parse_reference, metavar="OWNER/REPO#BASE_BRANCH")
-    parser.add_argument("target", type=parse_reference, metavar="OWNER/REPO#TARGET_BRANCH")
+    parser.add_argument(
+        "base", nargs="?", type=parse_reference, metavar="OWNER/REPO#BASE_BRANCH"
+    )
+    parser.add_argument(
+        "target", nargs="?", type=parse_reference, metavar="OWNER/REPO#TARGET_BRANCH"
+    )
+    parser.add_argument(
+        "--local-only",
+        action="store_true",
+        help="use existing local refs only; do not fetch from GitHub",
+    )
     if argv is None:
         argv = sys.argv[1:]
-    if not argv:
-        parser.print_help(sys.stderr)
-        return 2
     args = parser.parse_args(argv)
     try:
+        if (args.base is None) != (args.target is None):
+            parser.error("BASE and TARGET must be specified together")
+        target = args.target or current_checkout_reference()
+        base = args.base or default_base_reference(target[1])
+        checkout = Path(__file__).resolve().parent.parent
+        if args.local_only:
+            base_ref = local_reference(checkout, base)
+            target_ref = local_reference(checkout, target)
+            write_csv(checkout, target[0], sys.stdout, base_ref, target_ref)
+            return 0
+
         with tempfile.TemporaryDirectory(prefix="generate-file-commits-") as temporary:
             directory = Path(temporary)
             git(directory, "init", "--bare", "--quiet")
             for name, (repository, branch) in [
-                ("base", args.base), ("target", args.target),
+                ("base", base), ("target", target),
             ]:
                 git(directory, "check-ref-format", "refs/heads/" + branch)
                 git(
@@ -141,7 +235,7 @@ def main(argv=None):
                     f"https://github.com/{repository}.git",
                     f"+refs/heads/{branch}:refs/heads/{name}",
                 )
-            write_csv(directory, args.target[0], sys.stdout)
+            write_csv(directory, target[0], sys.stdout)
     except (OSError, subprocess.CalledProcessError, RuntimeError) as error:
         print(f"generate-file-commits: {error}", file=sys.stderr)
         return 1
