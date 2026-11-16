@@ -156,5 +156,14 @@ distribution-legacy: distribution-distdir
 .PHONY: distribution
 distribution: distribution-cafevdb distribution-owned distribution-git distribution-no-git distribution-legacy distribution-core
 
+.PHONY: distribution-single
+distribution-single: distribution-distdir
+# git legacy apps (no apparant appstore target)
+	$(TOOLDIR)/pack-apps.sh -j $(DISTPAR) -c \
+	--only $(ONLY) \
+	-d $(DISTDIR) \
+	-s $(DISTDIR)/apps-$(ONLY) \
+	$(OVERRIDE_CMDS)
+
 distribution-clean:
 	rm -rf $(DISTDIR)
