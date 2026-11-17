@@ -35,10 +35,8 @@ class LazyPathCachedMountInfo extends CachedMountInfo {
 		string $mountProvider,
 		?int $mountId,
 		callable $rootInternalPathCallback,
-		bool $enableSharing = true,
-		bool $authenticated = false,
 	) {
-		parent::__construct($user, $storageId, $rootId, $mountPoint, $mountProvider, $mountId, self::PATH_PLACEHOLDER, $enableSharing, $authenticated);
+		parent::__construct($user, $storageId, $rootId, $mountPoint, $mountProvider, $mountId, self::PATH_PLACEHOLDER);
 		$this->rootInternalPathCallback = $rootInternalPathCallback;
 	}
 

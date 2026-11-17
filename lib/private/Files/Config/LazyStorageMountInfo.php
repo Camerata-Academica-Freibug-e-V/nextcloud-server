@@ -80,26 +80,4 @@ class LazyStorageMountInfo extends CachedMountInfo {
 		}
 		return $this->key;
 	}
-
-	/**
-	 * Whether this mount point can be shared with others
-	 *
-	 * @return bool
-	 * @since 24.0.0
-	 */
-	#[\Override]
-	public function getEnableSharing(): bool {
-		return (bool)$this->mount->getOption('enable_sharing', true);
-	}
-
-	/**
-	 * Whether this mount point needs authentication
-	 *
-	 * @return bool
-	 * @since 24.0.0
-	 */
-	#[\Override]
-	public function getAuthenticated(): bool {
-		return (bool)$this->mount->getOption('authenticated', false);
-	}
 }

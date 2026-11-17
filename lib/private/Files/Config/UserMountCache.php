@@ -10,8 +10,6 @@ namespace OC\Files\Config;
 
 use OC\DB\Exceptions\DbalException;
 use OC\User\LazyUser;
-use OCP\Authentication\Exceptions\CredentialsUnavailableException;
-use OCP\Authentication\LoginCredentials\IStore;
 use OCP\Cache\CappedMemoryCache;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Diagnostics\IEventLogger;
@@ -27,7 +25,6 @@ use OCP\Files\NotFoundException;
 use OCP\IDBConnection;
 use OCP\IUser;
 use OCP\IUserManager;
-use OCP\Server;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -66,22 +63,8 @@ class UserMountCache implements IUserMountCache {
 	}
 
 	#[\Override]
-	public function registerMounts(IUser $user, array $mounts, ?array $mountProviderClasses = null, ?string $forUser = null) {
+	public function registerMounts(IUser $user, array $mounts, ?array $mountProviderClasses = null) {
 		$this->eventLogger->start('fs:setup:user:register', 'Registering mounts for user');
-
-		if ($forUser === null) {
-			$forUser = \OC_User::getUser();
-		}
-
-		try {
-			/** @var \OCP\Authentication\LoginCredentials\IStore $store */
-			$store = Server::get(IStore::class);
-			$store->getLoginCredentials();
-			$authenticated = true;
-		} catch (CredentialsUnavailableException $e) {
-			$authenticated = false;
-		}
-
 		/** @var array<string, ICachedMountInfo> $newMounts */
 		$newMounts = [];
 		foreach ($mounts as $mount) {
@@ -92,7 +75,7 @@ class UserMountCache implements IUserMountCache {
 			}
 		}
 
-		$cachedMounts = $this->getMountsForUser($user, $forUser !== $user->getUID() ? true : null, $authenticated ? null : false);
+		$cachedMounts = $this->getMountsForUser($user);
 		if (is_array($mountProviderClasses)) {
 			$cachedMounts = array_filter($cachedMounts, function (
 				ICachedMountInfo $mountInfo,
@@ -179,9 +162,6 @@ class UserMountCache implements IUserMountCache {
 				if (
 					$newMount->getMountId() !== $cachedMount->getMountId()
 					|| $newMount->getMountProvider() !== $cachedMount->getMountProvider()
-					|| $newMount->getStorageId() !== $cachedMount->getStorageId()
-					|| $newMount->getEnableSharing() !== $cachedMount->getEnableSharing()
-					|| $newMount->getAuthenticated() !== $cachedMount->getAuthenticated()
 				) {
 					$changed[] = [$cachedMount, $newMount];
 				}
@@ -200,8 +180,6 @@ class UserMountCache implements IUserMountCache {
 				'mount_point_hash' => hash('xxh128', $mount->getMountPoint()),
 				'mount_id' => $mount->getMountId(),
 				'mount_provider_class' => $mount->getMountProvider(),
-				'enable_sharing' => (int)$mount->getEnableSharing(),
-				'authenticated' => (int)$mount->getAuthenticated(),
 			]);
 		} else {
 			// in some cases this is legitimate, like orphaned shares
@@ -217,8 +195,6 @@ class UserMountCache implements IUserMountCache {
 			->set('storage_id', $builder->createNamedParameter($mount->getStorageId()))
 			->set('mount_id', $builder->createNamedParameter($mount->getMountId(), IQueryBuilder::PARAM_INT))
 			->set('mount_provider_class', $builder->createNamedParameter($mount->getMountProvider()))
-			->set('enable_sharing', $builder->createNamedParameter((int)$mount->getEnableSharing(), IQueryBuilder::PARAM_INT))
-			->set('authenticated', $builder->createNamedParameter((int)$mount->getAuthenticated(), IQueryBuilder::PARAM_INT))
 			->where($builder->expr()->eq('user_id', $builder->createNamedParameter($mount->getUser()->getUID())))
 			->andWhere($builder->expr()->eq('root_id', $builder->createNamedParameter($mount->getRootId(), IQueryBuilder::PARAM_INT)))
 			->andWhere($builder->expr()->eq('mount_point_hash', $builder->createNamedParameter($hash)));
@@ -256,8 +232,6 @@ class UserMountCache implements IUserMountCache {
 				$row['mount_provider_class'] ?? '',
 				$mount_id,
 				$pathCallback,
-				$row['enable_sharing'] ?? true,
-				$row['authenticated'] ?? false,
 			);
 		} else {
 			return new CachedMountInfo(
@@ -268,37 +242,25 @@ class UserMountCache implements IUserMountCache {
 				$row['mount_provider_class'] ?? '',
 				$mount_id,
 				$row['path'] ?? '',
-				$row['enable_sharing'] ?? true,
-				$row['authenticated'] ?? false,
 			);
 		}
 	}
 
 	/**
 	 * @param IUser $user
-	 * @param bool|null $shareable
-	 * @param bool|null $authenticated
 	 * @return ICachedMountInfo[]
 	 */
 	#[\Override]
-	public function getMountsForUser(IUser $user, ?bool $shareable = null, ?bool $authenticated = null) {
+	public function getMountsForUser(IUser $user) {
 		$userUID = $user->getUID();
 		if (!$this->userManager->userExists($userUID)) {
 			return [];
 		}
-		$filtered = $shareable !== null || $authenticated !== null;
-		if ($filtered || !isset($this->mountsForUsers[$userUID])) {
+		if (!isset($this->mountsForUsers[$userUID])) {
 			$builder = $this->connection->getQueryBuilder();
-			$query = $builder->select('storage_id', 'root_id', 'user_id', 'mount_point', 'mount_id', 'mount_provider_class', 'enable_sharing', 'authenticated')
+			$query = $builder->select('storage_id', 'root_id', 'user_id', 'mount_point', 'mount_id', 'mount_provider_class')
 				->from('mounts', 'm')
 				->where($builder->expr()->eq('user_id', $builder->createNamedParameter($userUID)));
-
-			if ($shareable !== null) {
-				$query->andWhere($builder->expr()->eq('enable_sharing', $builder->createNamedParameter((int)$shareable, IQueryBuilder::PARAM_INT)));
-			}
-			if ($authenticated !== null) {
-				$query->andWhere($builder->expr()->eq('authenticated', $builder->createNamedParameter((int)$authenticated, IQueryBuilder::PARAM_INT)));
-			}
 
 			$result = $query->executeQuery();
 			$rows = $result->fetchAllAssociative();
@@ -311,9 +273,6 @@ class UserMountCache implements IUserMountCache {
 				if ($mount !== null) {
 					$mounts[$mount->getKey()] = $mount;
 				}
-			}
-			if ($filtered) {
-				return $mounts;
 			}
 			$this->mountsForUsers[$userUID] = $mounts;
 		}
@@ -340,7 +299,7 @@ class UserMountCache implements IUserMountCache {
 	#[\Override]
 	public function getMountsForStorageId($numericStorageId, $user = null) {
 		$builder = $this->connection->getQueryBuilder();
-		$query = $builder->select('storage_id', 'root_id', 'user_id', 'mount_point', 'mount_id', 'f.path', 'mount_provider_class', 'enable_sharing', 'authenticated')
+		$query = $builder->select('storage_id', 'root_id', 'user_id', 'mount_point', 'mount_id', 'f.path', 'mount_provider_class')
 			->from('mounts', 'm')
 			->innerJoin('m', 'filecache', 'f', $builder->expr()->eq('m.root_id', 'f.fileid'))
 			->where($builder->expr()->eq('storage_id', $builder->createNamedParameter($numericStorageId, IQueryBuilder::PARAM_INT)));
@@ -363,7 +322,7 @@ class UserMountCache implements IUserMountCache {
 	#[\Override]
 	public function getMountsForRootId($rootFileId) {
 		$builder = $this->connection->getQueryBuilder();
-		$query = $builder->select('storage_id', 'root_id', 'user_id', 'mount_point', 'mount_id', 'f.path', 'mount_provider_class', 'enable_sharing', 'authenticated')
+		$query = $builder->select('storage_id', 'root_id', 'user_id', 'mount_point', 'mount_id', 'f.path', 'mount_provider_class')
 			->from('mounts', 'm')
 			->innerJoin('m', 'filecache', 'f', $builder->expr()->eq('m.root_id', 'f.fileid'))
 			->where($builder->expr()->eq('root_id', $builder->createNamedParameter($rootFileId, IQueryBuilder::PARAM_INT)));
@@ -419,7 +378,7 @@ class UserMountCache implements IUserMountCache {
 		}
 
 		$builder = $this->connection->getQueryBuilder();
-		$query = $builder->select('storage_id', 'root_id', 'user_id', 'mount_point', 'mount_id', 'f.path', 'mount_provider_class', 'enable_sharing', 'authenticated')
+		$query = $builder->select('storage_id', 'root_id', 'user_id', 'mount_point', 'mount_id', 'f.path', 'mount_provider_class')
 			->from('mounts', 'm')
 			->innerJoin('m', 'filecache', 'f', $builder->expr()->eq('m.root_id', 'f.fileid'))
 			->where($builder->expr()->eq('m.storage_id', $builder->createNamedParameter($storageId, IQueryBuilder::PARAM_INT)))
@@ -461,8 +420,6 @@ class UserMountCache implements IUserMountCache {
 				$row['mount_id'] === null ? null : (int)$row['mount_id'],
 				$row['mount_provider_class'] ?? '',
 				$row['path'] ?? '',
-				(bool)$row['enable_sharing'],
-				(bool)$row['authenticated'],
 				$internalPath,
 			);
 		}
