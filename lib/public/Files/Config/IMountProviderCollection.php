@@ -15,12 +15,6 @@ use OCP\IUser;
  * @since 8.0.0
  */
 interface IMountProviderCollection {
-
-	/** @since 8.0.0 */
-	public const DEFAULT_PRIORITY = 0;
-	/** @since 23.0.0 */
-	public const SHARES_PRIORITY = 1000;
-
 	/**
 	 * Get all configured mount points for the user
 	 *
@@ -53,10 +47,9 @@ interface IMountProviderCollection {
 	 * Add a provider for mount points
 	 *
 	 * @param \OCP\Files\Config\IMountProvider $provider
-	 * @param int $priority
 	 * @since 8.0.0
 	 */
-	public function registerProvider(IMountProvider $provider, int $priority = self::DEFAULT_PRIORITY);
+	public function registerProvider(IMountProvider $provider);
 
 	/**
 	 * Add a filter for mounts

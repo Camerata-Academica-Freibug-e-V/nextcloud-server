@@ -35,7 +35,7 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 	private array $homeProviders = [];
 
 	/**
-	 * @var array<int, array<class-string<IMountProvider>, IMountProvider>>
+	 * @var array<class-string<IMountProvider>, IMountProvider>
 	 */
 	private array $providers = [];
 
@@ -70,12 +70,10 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 	 */
 	private function getUserMountsForProviders(IUser $user, array $providers): array {
 		$loader = $this->loader;
-		$mounts = [];
-		foreach ($providers as $provider) {
-			foreach ($this->getMountsFromProvider($provider, $user, $loader) as $mount) {
-				$mounts[] = $mount;
-			}
-		}
+		$mounts = array_map(function (IMountProvider $provider) use ($user, $loader) {
+			return $this->getMountsFromProvider($provider, $user, $loader);
+		}, $providers);
+		$mounts = array_merge(...$mounts);
 		return $this->filterMounts($user, $mounts);
 	}
 
@@ -84,7 +82,7 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 	 */
 	#[\Override]
 	public function getMountsForUser(IUser $user): array {
-		return $this->getUserMountsForProviders($user, $this->getProviders());
+		return $this->getUserMountsForProviders($user, array_values($this->providers));
 	}
 
 	/**
@@ -101,8 +99,7 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 		bool $forChildren,
 		array $mountProviderArgs,
 	): array {
-		$providers = $this->getMergedProviders();
-		$provider = $providers[$providerClass] ?? null;
+		$provider = $this->providers[$providerClass] ?? null;
 		if ($provider === null) {
 			return [];
 		}
@@ -146,7 +143,7 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 	#[\Override]
 	public function getUserMountsForProviderClasses(IUser $user, array $mountProviderClasses): array {
 		$providers = array_filter(
-			$this->getMergedProviders(),
+			$this->providers,
 			fn (string $providerClass) => in_array($providerClass, $mountProviderClasses, true),
 			ARRAY_FILTER_USE_KEY
 		);
@@ -159,24 +156,42 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 	public function addMountForUser(IUser $user, IMountManager $mountManager, ?callable $providerFilter = null): array {
 		// shared mount provider gets to go last since it needs to know existing files
 		// to check for name collisions
+		$firstMounts = [];
+		if ($providerFilter) {
+			$providers = array_filter($this->providers, $providerFilter, ARRAY_FILTER_USE_KEY);
+		} else {
+			$providers = $this->providers;
+		}
+		$firstProviders
+			= array_filter(
+				$providers,
+				fn (string $providerClass) => ($providerClass !== MountProvider::class),
+				ARRAY_FILTER_USE_KEY
+			);
+		$lastProviders = array_filter(
+			$providers,
+			fn (string $providerClass) => $providerClass === MountProvider::class,
+			ARRAY_FILTER_USE_KEY
+		);
+		foreach ($firstProviders as $provider) {
+			$mounts = $this->getMountsFromProvider($provider, $user, $this->loader);
+			$firstMounts = array_merge($firstMounts, $mounts);
+		}
+		$firstMounts = $this->filterMounts($user, $firstMounts);
+		array_walk($firstMounts, [$mountManager, 'addMount']);
 
-		$mounts = [];
-		foreach ($this->providers as $priority => $providers) {
-			$priorityMounts = [];
-			foreach ($providers as $provider) {
-				$providerMounts = $this->getMountsFromProvider($provider, $user, $this->loader);
-				$priorityMounts = array_merge($priorityMounts, $providerMounts);
-			}
-			$priorityMounts = $this->filterMounts($user, $priorityMounts);
-			$this->eventLogger->start('fs:setup:add-mounts', 'Add mounts to the filesystem');
-			array_walk($priorityMounts, [$mountManager, 'addMount']);
-			$this->eventLogger->end('fs:setup:add-mounts');
-			foreach ($priorityMounts as $mount) {
-				$mounts[] = $mount;
-			}
+		$lateMounts = [];
+		foreach ($lastProviders as $provider) {
+			$mounts = $this->getMountsFromProvider($provider, $user, $this->loader);
+			$lateMounts = array_merge($lateMounts, $mounts);
 		}
 
-		return $mounts;
+		$lateMounts = $this->filterMounts($user, $lateMounts);
+		$this->eventLogger->start('fs:setup:add-mounts', 'Add mounts to the filesystem');
+		array_walk($lateMounts, [$mountManager, 'addMount']);
+		$this->eventLogger->end('fs:setup:add-mounts');
+
+		return array_values(array_merge($lateMounts, $firstMounts));
 	}
 
 	/**
@@ -200,13 +215,8 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 	 * Add a provider for mount points
 	 */
 	#[\Override]
-	public function registerProvider(IMountProvider $provider, int $priority = self::DEFAULT_PRIORITY): void {
-		if ($provider instanceof MountProvider
-			&& $priority === self::DEFAULT_PRIORITY) {
-			$priority = self::SHARES_PRIORITY;
-		}
-		$this->providers[$priority][get_class($provider)] = $provider;
-		ksort($this->providers);
+	public function registerProvider(IMountProvider $provider): void {
+		$this->providers[get_class($provider)] = $provider;
 
 		$this->emit('\OC\Files\Config', 'registerMountProvider', [$provider]);
 	}
@@ -285,17 +295,10 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 	}
 
 	/**
-	 * @return array<class-string<IMountProvider>, IMountProvider>
-	 */
-	private function getMergedProviders(): array {
-		return array_merge(...array_values($this->providers));
-	}
-
-	/**
 	 * @return list<IMountProvider>
 	 */
 	public function getProviders(): array {
-		return array_values($this->getMergedProviders());
+		return array_values($this->providers);
 	}
 
 	/**
