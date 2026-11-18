@@ -78,14 +78,14 @@ class Node implements INode {
 	public function getFileInfo(bool $includeMountPoint = true) {
 		if (!$this->fileInfo) {
 			if (!Filesystem::isValidPath($this->path)) {
-				throw new InvalidPathException('Not a valid path: "' . (string)$this->path . '".');
+				throw new InvalidPathException();
 			}
 			$fileInfo = $this->view->getFileInfo($this->path, $includeMountPoint);
 			$this->infoHasSubMountsIncluded = $includeMountPoint;
 			if ($fileInfo instanceof FileInfo) {
 				$this->fileInfo = $fileInfo;
 			} else {
-				throw new NotFoundException('Unable to find "' . (string)$this->path . '".');
+				throw new NotFoundException();
 			}
 		} elseif ($includeMountPoint && !$this->infoHasSubMountsIncluded && $this instanceof Folder) {
 			if ($this->fileInfo instanceof \OC\Files\FileInfo) {
