@@ -85,6 +85,18 @@ class TemporaryNoLocal extends Temporary {
 	}
 }
 
+class TemporaryReadOnlyPermissions extends Temporary {
+	#[\Override]
+	public function getPermissions(string $path): int {
+		return Constants::PERMISSION_READ;
+	}
+
+	#[\Override]
+	public function getMetaData(string $path): ?array {
+		return Common::getMetaData($path);
+	}
+}
+
 /**
  * Storage that always reports hasUpdated() = true for any path, simulating the
  * behavior of Amazon S3 external storage (which has no real directory objects).
@@ -522,6 +534,45 @@ class ViewTest extends \Test\TestCase {
 		$storage1 = $this->getTestStorage(true, TemporaryNoLocal::class);
 		$storage2 = $this->getTestStorage(true, TemporaryNoLocal::class);
 		$this->copyBetweenStorages($storage1, $storage2);
+	}
+
+	public static function readOnlyCopyDestinationPermissions(): array {
+		return [
+			'masked source, full destination' => [Temporary::class, Constants::PERMISSION_ALL],
+			'masked source, limited destination' => [Temporary::class, Constants::PERMISSION_READ | Constants::PERMISSION_CREATE | Constants::PERMISSION_UPDATE],
+			'read-only source, full destination' => [TemporaryReadOnlyPermissions::class, Constants::PERMISSION_ALL],
+			'read-only source, limited destination' => [TemporaryReadOnlyPermissions::class, Constants::PERMISSION_READ | Constants::PERMISSION_CREATE | Constants::PERMISSION_UPDATE],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('readOnlyCopyDestinationPermissions')]
+	public function testCopyFromReadOnlyStorage(string $sourceClass, int $destinationPermissions): void {
+		$source = new PermissionsMask([
+			'storage' => $this->getTestStorage(true, $sourceClass),
+			'mask' => Constants::PERMISSION_READ,
+		]);
+		$destination = new PermissionsMask([
+			'storage' => $this->getTestStorage(true, TemporaryNoCross::class),
+			'mask' => $destinationPermissions,
+		]);
+		$destination->getWatcher()->setPolicy(Watcher::CHECK_NEVER);
+		Filesystem::mount($destination, [], '/');
+		Filesystem::mount($source, [], '/substorage');
+		$view = new View('');
+
+		$this->assertSame(Constants::PERMISSION_READ, $view->getFileInfo('substorage/foo.txt')->getPermissions());
+		$this->assertSame(Constants::PERMISSION_READ, $view->getFileInfo('substorage/folder/bar.txt')->getPermissions());
+		$this->assertTrue($view->copy('substorage/foo.txt', 'copied.txt'));
+		$this->assertTrue($view->copy('substorage/folder', 'copied-folder'));
+
+		$filePermissions = $destinationPermissions & ~Constants::PERMISSION_CREATE;
+		foreach (['copied.txt', 'copied-folder/bar.txt'] as $path) {
+			$this->assertSame($filePermissions, $destination->getCache()->get($path)->getPermissions());
+			$this->assertSame($filePermissions, $view->getFileInfo($path)->getPermissions());
+			$this->assertSame("dummy file data\n", $destination->file_get_contents($path));
+		}
+		$this->assertSame($destinationPermissions, $destination->getCache()->get('copied-folder')->getPermissions());
+		$this->assertSame($destinationPermissions, $view->getFileInfo('copied-folder')->getPermissions());
 	}
 
 	public function copyBetweenStorages($storage1, $storage2) {

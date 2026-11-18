@@ -9,6 +9,7 @@
 namespace OCA\Files_Sharing\Tests;
 
 use OC\Files\Cache\FailedCache;
+use OC\Files\Cache\Watcher;
 use OC\Files\Filesystem;
 use OC\Files\Storage\FailedStorage;
 use OC\Files\Storage\Temporary;
@@ -500,6 +501,47 @@ class SharedStorageTest extends TestCase {
 		$this->assertEquals(Constants::PERMISSION_ALL - Constants::PERMISSION_CREATE, $info->getPermissions());
 
 		$this->view->unlink($this->filename);
+		$this->shareManager->deleteShare($share);
+	}
+
+	public function testCopyFromReadOnlyShare(): void {
+		$this->view->mkdir($this->folder . '/nested');
+		$this->view->file_put_contents($this->folder . '/nested/file.txt', 'nested file');
+		$share = $this->share(
+			IShare::TYPE_USER,
+			$this->folder,
+			self::TEST_FILES_SHARING_API_USER1,
+			self::TEST_FILES_SHARING_API_USER2,
+			Constants::PERMISSION_READ
+		);
+
+		self::loginHelper(self::TEST_FILES_SHARING_API_USER2);
+		$view = new View('/' . self::TEST_FILES_SHARING_API_USER2 . '/files');
+		$sourceFile = $this->folder . $this->filename;
+		$this->assertSame(Constants::PERMISSION_READ, $view->getFileInfo($sourceFile)->getPermissions());
+		$this->assertSame(Constants::PERMISSION_READ, $view->getFileInfo($this->folder . '/nested/file.txt')->getPermissions());
+
+		[$destination] = $view->resolvePath('/');
+		$destination->getWatcher()->setPolicy(Watcher::CHECK_NEVER);
+		$this->assertTrue($view->copy($sourceFile, '/copied.txt'));
+		$this->assertTrue($view->copy($this->folder, '/copied-folder'));
+
+		$filePermissions = Constants::PERMISSION_ALL & ~Constants::PERMISSION_CREATE;
+		foreach ([
+			'copied.txt' => 'file in subfolder',
+			'copied-folder/nested/file.txt' => 'nested file',
+		] as $path => $content) {
+			[$destination, $internalPath] = $view->resolvePath('/' . $path);
+			$this->assertSame($filePermissions, $destination->getCache()->get($internalPath)->getPermissions());
+			$this->assertSame($filePermissions, $view->getFileInfo('/' . $path)->getPermissions());
+			$this->assertSame($content, $view->file_get_contents('/' . $path));
+		}
+		foreach (['/copied-folder', '/copied-folder/nested'] as $path) {
+			[$destination, $internalPath] = $view->resolvePath($path);
+			$this->assertSame(Constants::PERMISSION_ALL, $destination->getCache()->get($internalPath)->getPermissions());
+			$this->assertSame(Constants::PERMISSION_ALL, $view->getFileInfo($path)->getPermissions());
+		}
+
 		$this->shareManager->deleteShare($share);
 	}
 }
