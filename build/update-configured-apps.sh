@@ -40,7 +40,6 @@ ALL_APPS="
  recommendations
  redaxo
  related_resources
- richdocuments
  serverinfo
  suspicious_login
  terms_of_service
@@ -94,7 +93,6 @@ BUILD_COMMANDS=(
     # [photos]="make dev-setup build-js-production && rm -rf vendor/* && composer install --no-dev"
     [photos]="rm -rf vendor/* && composer install --no-dev"
     [redaxo]="make \$BUILD_MODE"
-    [richdocuments]="run-krankerl.sh"
     [terms_of_service]=make
     [text]=make
     [twofactor_gateway]="run-krankerl.sh"
@@ -119,7 +117,6 @@ REBASE_BRANCHES=(
     [mail]=origin/stable5.13
     [maps]=origin/master
     [related_resources]=origin/$CORE_BRANCH
-    [richdocuments]=origin/$CORE_BRANCH
     [terms_of_service]=origin/stable4.8
     [text]=origin/$CORE_BRANCH
     [twofactor_gateway]=origin/$CORE_BRANCH
@@ -158,7 +155,6 @@ RESET_BRANCHES=(
     [recommendations]=origin/$CORE_BRANCH
     [redaxo]=origin/main
     [related_resources]=origin/$CORE_BRANCH
-    [richdocuments]=cjh/feature/authenticated-requests-35
     [serverinfo]=origin/$CORE_BRANCH
     [suspicious_login]=origin/$CORE_BRANCH
     [terms_of_service]=origin/stable4.8
