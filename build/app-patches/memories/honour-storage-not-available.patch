@@ -1,0 +1,31 @@
+--- ./lib/Db/FsManager.php.orig	2026-11-18 14:01:14.347723667 +0100
++++ ./lib/Db/FsManager.php	2026-11-18 14:04:25.951895516 +0100
+@@ -36,6 +36,7 @@
+ use OCP\Files\IRootFolder;
+ use OCP\Files\Node;
+ use OCP\Files\NotFoundException;
++use OCP\Files\StorageNotAvailableException;
+ use OCP\Files\Search\ISearchBinaryOperator;
+ use OCP\Files\Search\ISearchComparison;
+ use OCP\ICache;
+@@ -147,9 +148,18 @@
+         try {
+             foreach ($paths as $path) {
+                 if ($sanitized = Util::sanitizePath($path)) {
+-                    $node = $userFolder->get($sanitized);
++                    try {
++                        $node = $userFolder->get($sanitized);
++                        $nodeEtag = $node->getEtag();
++                    } catch (NotFoundException) {
++                        // skip to next file or folder
++                        continue;
++                    } catch (StorageNotAvailableException) {
++                        // skip to next file or folder
++                        continue;
++                    }
+                     $root->addFolder($node);
+-                    $etag .= $node->getEtag();
++                    $etag .= $nodeEtag;
+                 } else {
+                     throw new \Exception("invalid path {$path}");
+                 }
