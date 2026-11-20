@@ -1272,6 +1272,7 @@ class ComposerStaticInit749170dad3f5e7f9ca158f5a9f04f6a2
         'OC\\AppFramework\\Middleware\\OCSMiddleware' => __DIR__ . '/../../..' . '/lib/private/AppFramework/Middleware/OCSMiddleware.php',
         'OC\\AppFramework\\Middleware\\PublicShare\\Exceptions\\NeedAuthenticationException' => __DIR__ . '/../../..' . '/lib/private/AppFramework/Middleware/PublicShare/Exceptions/NeedAuthenticationException.php',
         'OC\\AppFramework\\Middleware\\PublicShare\\PublicShareMiddleware' => __DIR__ . '/../../..' . '/lib/private/AppFramework/Middleware/PublicShare/PublicShareMiddleware.php',
+        'OC\\AppFramework\\Middleware\\Security\\AuthorizedAdminSettingsAuthorization' => __DIR__ . '/../../..' . '/lib/private/AppFramework/Middleware/Security/AuthorizedAdminSettingsAuthorization.php',
         'OC\\AppFramework\\Middleware\\Security\\BruteForceMiddleware' => __DIR__ . '/../../..' . '/lib/private/AppFramework/Middleware/Security/BruteForceMiddleware.php',
         'OC\\AppFramework\\Middleware\\Security\\CORSMiddleware' => __DIR__ . '/../../..' . '/lib/private/AppFramework/Middleware/Security/CORSMiddleware.php',
         'OC\\AppFramework\\Middleware\\Security\\CSPMiddleware' => __DIR__ . '/../../..' . '/lib/private/AppFramework/Middleware/Security/CSPMiddleware.php',

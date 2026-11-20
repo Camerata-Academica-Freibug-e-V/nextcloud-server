@@ -1231,6 +1231,7 @@ return array(
     'OC\\AppFramework\\Middleware\\OCSMiddleware' => $baseDir . '/lib/private/AppFramework/Middleware/OCSMiddleware.php',
     'OC\\AppFramework\\Middleware\\PublicShare\\Exceptions\\NeedAuthenticationException' => $baseDir . '/lib/private/AppFramework/Middleware/PublicShare/Exceptions/NeedAuthenticationException.php',
     'OC\\AppFramework\\Middleware\\PublicShare\\PublicShareMiddleware' => $baseDir . '/lib/private/AppFramework/Middleware/PublicShare/PublicShareMiddleware.php',
+    'OC\\AppFramework\\Middleware\\Security\\AuthorizedAdminSettingsAuthorization' => $baseDir . '/lib/private/AppFramework/Middleware/Security/AuthorizedAdminSettingsAuthorization.php',
     'OC\\AppFramework\\Middleware\\Security\\BruteForceMiddleware' => $baseDir . '/lib/private/AppFramework/Middleware/Security/BruteForceMiddleware.php',
     'OC\\AppFramework\\Middleware\\Security\\CORSMiddleware' => $baseDir . '/lib/private/AppFramework/Middleware/Security/CORSMiddleware.php',
     'OC\\AppFramework\\Middleware\\Security\\CSPMiddleware' => $baseDir . '/lib/private/AppFramework/Middleware/Security/CSPMiddleware.php',
