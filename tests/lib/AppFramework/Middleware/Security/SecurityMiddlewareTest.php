@@ -10,6 +10,7 @@ namespace Test\AppFramework\Middleware\Security;
 
 use OC\AppFramework\Http;
 use OC\AppFramework\Http\Request;
+use OC\AppFramework\Middleware\Security\AuthorizedAdminSettingsAuthorization;
 use OC\AppFramework\Middleware\Security\Exceptions\AppNotEnabledException;
 use OC\AppFramework\Middleware\Security\Exceptions\CrossSiteRequestForgeryException;
 use OC\AppFramework\Middleware\Security\Exceptions\ExAppRequiredException;
@@ -21,6 +22,8 @@ use OC\AppFramework\Middleware\Security\SecurityMiddleware;
 use OC\AppFramework\Utility\ControllerMethodReflector;
 use OC\Settings\AuthorizedGroupMapper;
 use OC\User\Session;
+use OCA\Settings\Settings\Admin\Sharing;
+use OCA\Settings\Settings\Admin\Users;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\RedirectResponse;
@@ -108,7 +111,7 @@ class SecurityMiddlewareTest extends \Test\TestCase {
 			$subAdminManager,
 			$this->appManager,
 			$this->l10n,
-			$this->authorizedGroupMapper,
+			new AuthorizedAdminSettingsAuthorization($this->authorizedGroupMapper),
 			$this->userSession,
 			$remoteIpAddress
 		);
@@ -180,6 +183,30 @@ class SecurityMiddlewareTest extends \Test\TestCase {
 		return [
 			['testAnnotationExAppRequired'],
 			['testAttributeExAppRequired'],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('dataDelegatedSettings')]
+	public function testDelegatedSettingsAuthorization(array $delegations, bool $allowed): void {
+		$this->reader->reflect($this->controller, 'testMixedAuthorizedAdminSettings');
+		$this->authorizedGroupMapper->method('findAllClassesForUser')->willReturn($delegations);
+		$authorization = new AuthorizedAdminSettingsAuthorization($this->authorizedGroupMapper);
+
+		$this->assertSame(
+			['legacyOne', 'legacyTwo', Sharing::class, Users::class],
+			$authorization->getSettingClasses($this->reader),
+		);
+		$this->assertSame($allowed, $authorization->isAuthorized($this->userSession->getUser(), $this->reader));
+	}
+
+	public static function dataDelegatedSettings(): array {
+		return [
+			[['legacyOne'], true],
+			[['legacyTwo'], true],
+			[[Sharing::class], true],
+			[[Users::class], true],
+			[['unrelated'], false],
+			[[], false],
 		];
 	}
 

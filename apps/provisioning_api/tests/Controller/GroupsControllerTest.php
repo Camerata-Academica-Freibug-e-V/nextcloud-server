@@ -8,21 +8,33 @@
 
 namespace OCA\Provisioning_API\Tests\Controller;
 
+use OC\AppFramework\Middleware\Security\AuthorizedAdminSettingsAuthorization;
+use OC\AppFramework\Middleware\Security\Exceptions\NotAdminException;
+use OC\AppFramework\Middleware\Security\SecurityMiddleware;
+use OC\AppFramework\Utility\ControllerMethodReflector;
 use OC\Group\DisplayNameCache as GroupDisplayNameCache;
 use OC\Group\Manager;
+use OC\Settings\AuthorizedGroupMapper;
 use OCA\Provisioning_API\Controller\GroupsController;
+use OCA\Settings\Settings\Admin\Sharing;
+use OCA\Settings\Settings\Admin\Users;
 use OCP\Accounts\IAccountManager;
+use OCP\App\IAppManager;
 use OCP\AppFramework\OCS\OCSException;
 use OCP\Files\IRootFolder;
 use OCP\Group\ISubAdmin;
 use OCP\IConfig;
 use OCP\IGroup;
+use OCP\IL10N;
+use OCP\INavigationManager;
 use OCP\IRequest;
 use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\IUserManager;
 use OCP\IUserSession;
 use OCP\L10N\IFactory;
+use OCP\Security\Ip\IRemoteAddress;
+use OCP\Server;
 use OCP\User\Exceptions\UserNotFoundException;
 use OCP\UserInterface;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -41,6 +53,8 @@ class GroupsControllerTest extends \Test\TestCase {
 	protected GroupsController&MockObject $api;
 	private GroupDisplayNameCache&MockObject $groupDisplayNameCache;
 	private IURLGenerator&MockObject $urlGenerator;
+	private AuthorizedGroupMapper&MockObject $authorizedGroupMapper;
+	private ControllerMethodReflector $reflector;
 
 	private IRootFolder $rootFolder;
 
@@ -59,6 +73,8 @@ class GroupsControllerTest extends \Test\TestCase {
 		$this->rootFolder = $this->createMock(IRootFolder::class);
 		$this->groupDisplayNameCache = $this->createMock(GroupDisplayNameCache::class);
 		$this->urlGenerator = $this->createMock(IURLGenerator::class);
+		$this->authorizedGroupMapper = $this->createMock(AuthorizedGroupMapper::class);
+		$this->reflector = new ControllerMethodReflector($this->logger);
 
 		$this->groupManager
 			->method('getSubAdmin')
@@ -79,9 +95,12 @@ class GroupsControllerTest extends \Test\TestCase {
 				$this->logger,
 				$this->groupDisplayNameCache,
 				$this->urlGenerator,
+				new AuthorizedAdminSettingsAuthorization($this->authorizedGroupMapper),
+				$this->reflector,
 			])
 			->onlyMethods(['fillStorageInfo'])
 			->getMock();
+		$this->reflector->reflect($this->api, 'getGroupsDetails');
 	}
 
 	private function createGroup(string $gid): IGroup&MockObject {
@@ -193,6 +212,7 @@ class GroupsControllerTest extends \Test\TestCase {
 	 */
 	#[\PHPUnit\Framework\Attributes\DataProvider(methodName: 'dataGetGroups')]
 	public function testGetGroupsDetails($search, $limit, $offset): void {
+		$this->asAdmin();
 		$groups = [$this->createGroup('group1'), $this->createGroup('group2')];
 
 		$search = $search === null ? '' : $search;
@@ -224,6 +244,104 @@ class GroupsControllerTest extends \Test\TestCase {
 				'backends' => [],
 			]
 		]], $result->getData());
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider(methodName: 'dataDelegatedGroupDetails')]
+	public function testGetGroupsDetailsAsDelegatedAdmin(string $setting): void {
+		$this->asUser();
+		$groups = [$this->createGroup('group1'), $this->createGroup('group2')];
+		$this->authorizedGroupMapper->expects($this->once())
+			->method('findAllClassesForUser')
+			->willReturn([$setting]);
+		$this->subAdminManager->expects($this->never())->method('getSubAdminsGroups');
+		$this->groupManager->expects($this->once())->method('search')
+			->with('group', 2, 1)->willReturn($groups);
+
+		$result = $this->api->getGroupsDetails('group', 2, 1);
+		$this->assertSame(['group1', 'group2'], array_column($result->getData()['groups'], 'id'));
+	}
+
+	public static function dataDelegatedGroupDetails(): array {
+		return [[Sharing::class], [Users::class]];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider(methodName: 'dataSubAdminGroupDetails')]
+	public function testGetGroupsDetailsAsSubAdmin(?int $limit, int $offset, array $expected): void {
+		$this->asUser();
+		$groups = [
+			$this->createGroup('other1'),
+			$this->createGroup('group1'),
+			$this->createGroup('other2'),
+			$this->createGroup('group2'),
+			$this->createGroup('group3'),
+		];
+		$this->authorizedGroupMapper->method('findAllClassesForUser')->willReturn(['unrelated-setting']);
+		$this->subAdminManager->expects($this->once())->method('getSubAdminsGroups')
+			->willReturn([$groups[1], $groups[3], $groups[4]]);
+		$this->groupManager->expects($this->once())->method('search')
+			->with('match')->willReturn($groups);
+
+		$result = $this->api->getGroupsDetails('match', $limit, $offset);
+		$this->assertSame($expected, array_column($result->getData()['groups'], 'id'));
+	}
+
+	public static function dataSubAdminGroupDetails(): array {
+		return [
+			[null, 0, ['group1', 'group2', 'group3']],
+			[1, 0, ['group1']],
+			[1, 1, ['group2']],
+			[null, 2, ['group3']],
+			[0, 1, ['group2', 'group3']],
+			[1, 3, []],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider(methodName: 'dataGroupDetailsAuthorization')]
+	public function testGetGroupsDetailsMiddleware(bool $isSubAdmin, array $settings, bool $allowed): void {
+		$this->asUser();
+		$this->subAdminManager->method('isSubAdmin')->willReturn($isSubAdmin);
+		$this->authorizedGroupMapper->method('findAllClassesForUser')->willReturn($settings);
+		$this->request->method('passesStrictCookieCheck')->willReturn(true);
+		$this->request->method('passesCSRFCheck')->willReturn(true);
+		$remoteAddress = $this->createMock(IRemoteAddress::class);
+		$remoteAddress->method('allowsAdminActions')->willReturn(true);
+		$appManager = $this->createMock(IAppManager::class);
+		$appManager->expects($allowed ? $this->once() : $this->never())
+			->method('getAppPath')->willReturn('provisioning_api');
+		$appManager->method('isEnabledForUser')->willReturn(true);
+		$reflector = new ControllerMethodReflector(Server::get(LoggerInterface::class));
+		$reflector->reflect($this->api, 'getGroupsDetails');
+		$middleware = new SecurityMiddleware(
+			$this->request,
+			$reflector,
+			$this->createMock(INavigationManager::class),
+			$this->urlGenerator,
+			$this->logger,
+			'provisioning_api',
+			true,
+			$this->groupManager,
+			$this->subAdminManager,
+			$appManager,
+			$this->createMock(IL10N::class),
+			new AuthorizedAdminSettingsAuthorization($this->authorizedGroupMapper),
+			$this->userSession,
+			$remoteAddress,
+		);
+
+		if (!$allowed) {
+			$this->expectException(NotAdminException::class);
+		}
+		$middleware->beforeController($this->api, 'getGroupsDetails');
+	}
+
+	public static function dataGroupDetailsAuthorization(): array {
+		return [
+			[true, [], true],
+			[true, [Users::class], true],
+			[false, [Sharing::class], true],
+			[false, [Users::class], true],
+			[false, ['unrelated-setting'], false],
+		];
 	}
 
 	public function testGetGroupAsSubadmin(): void {
