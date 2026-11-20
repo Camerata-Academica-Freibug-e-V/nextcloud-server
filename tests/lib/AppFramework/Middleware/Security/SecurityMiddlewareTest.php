@@ -10,6 +10,7 @@ namespace Test\AppFramework\Middleware\Security;
 
 use OC\AppFramework\Http;
 use OC\AppFramework\Http\Request;
+use OC\AppFramework\Middleware\Security\Exceptions\AdminIpNotAllowedException;
 use OC\AppFramework\Middleware\Security\Exceptions\AppNotEnabledException;
 use OC\AppFramework\Middleware\Security\Exceptions\CrossSiteRequestForgeryException;
 use OC\AppFramework\Middleware\Security\Exceptions\ExAppRequiredException;
@@ -21,6 +22,8 @@ use OC\AppFramework\Middleware\Security\SecurityMiddleware;
 use OC\AppFramework\Utility\ControllerMethodReflector;
 use OC\Settings\AuthorizedGroupMapper;
 use OC\User\Session;
+use OCA\Settings\Settings\Admin\Sharing;
+use OCA\Settings\Settings\Admin\Users;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\RedirectResponse;
@@ -81,13 +84,13 @@ class SecurityMiddlewareTest extends \Test\TestCase {
 		$this->secAjaxException = new SecurityException('hey', true);
 	}
 
-	private function getMiddleware(bool $isLoggedIn, bool $isAdminUser, bool $isSubAdmin, bool $isAppEnabledForUser = true): SecurityMiddleware {
+	private function getMiddleware(bool $isLoggedIn, bool $isAdminUser, bool $isSubAdmin, bool $isAppEnabledForUser = true, bool $allowsAdminActions = true): SecurityMiddleware {
 		$this->appManager = $this->createMock(IAppManager::class);
 		$this->appManager->expects($this->any())
 			->method('isEnabledForUser')
 			->willReturn($isAppEnabledForUser);
 		$remoteIpAddress = $this->createMock(IRemoteAddress::class);
-		$remoteIpAddress->method('allowsAdminActions')->willReturn(true);
+		$remoteIpAddress->method('allowsAdminActions')->willReturn($allowsAdminActions);
 
 		$groupManager = $this->createMock(IGroupManager::class);
 		$groupManager->method('isAdmin')
@@ -181,6 +184,37 @@ class SecurityMiddlewareTest extends \Test\TestCase {
 			['testAnnotationExAppRequired'],
 			['testAttributeExAppRequired'],
 		];
+	}
+
+	public static function dataAuthorizedAdminSettings(): array {
+		return [
+			'single attribute' => ['testSingleAuthorizedAdminSetting', [Sharing::class], false, false, true, null],
+			'legacy annotation' => ['testLegacyAuthorizedAdminSettings', ['legacyTwo'], false, false, true, null],
+			'first attribute' => ['testRepeatedAuthorizedAdminSettings', [Sharing::class], false, false, true, null],
+			'second attribute' => ['testRepeatedAuthorizedAdminSettings', [Users::class], false, false, true, null],
+			'neither attribute' => ['testRepeatedAuthorizedAdminSettings', ['unrelated'], false, false, true, NotAdminException::class],
+			'legacy first' => ['testMixedAuthorizedAdminSettings', ['legacyOne'], false, false, true, null],
+			'legacy second' => ['testMixedAuthorizedAdminSettings', ['legacyTwo'], false, false, true, null],
+			'mixed second attribute' => ['testMixedAuthorizedAdminSettings', [Users::class], false, false, true, null],
+			'admin' => ['testRepeatedAuthorizedAdminSettings', [], true, false, true, null],
+			'sub-admin' => ['testSubAdminAuthorizedAdminSettings', [], false, true, true, null],
+			'admin IP blocked' => ['testRepeatedAuthorizedAdminSettings', [Users::class], false, false, false, AdminIpNotAllowedException::class],
+			'sub-admin IP blocked' => ['testSubAdminAuthorizedAdminSettings', [], false, true, false, AdminIpNotAllowedException::class],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('dataAuthorizedAdminSettings')]
+	public function testAuthorizedAdminSettings(string $method, array $settings, bool $isAdmin, bool $isSubAdmin, bool $allowsAdminActions, ?string $exception): void {
+		$this->authorizedGroupMapper->method('findAllClassesForUser')->willReturn($settings);
+		$this->request->method('passesStrictCookieCheck')->willReturn(true);
+		$this->reader->reflect($this->controller, $method);
+		$middleware = $this->getMiddleware(true, $isAdmin, $isSubAdmin, true, $allowsAdminActions);
+		if ($exception !== null) {
+			$this->expectException($exception);
+		} else {
+			$this->navigationManager->expects($this->once())->method('setActiveEntry')->with('files');
+		}
+		$middleware->beforeController($this->controller, $method);
 	}
 
 	#[\PHPUnit\Framework\Attributes\DataProvider('dataNoCSRFRequiredPublicPage')]

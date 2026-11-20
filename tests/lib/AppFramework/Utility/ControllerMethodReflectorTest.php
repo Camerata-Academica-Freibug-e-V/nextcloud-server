@@ -9,8 +9,12 @@
 namespace Test\AppFramework\Utility;
 
 use OC\AppFramework\Utility\ControllerMethodReflector;
+use OCA\Settings\Settings\Admin\Sharing;
+use OCA\Settings\Settings\Admin\Users;
+use OCP\AppFramework\Http\Attribute\AuthorizedAdminSetting;
 use OCP\Server;
 use Psr\Log\LoggerInterface;
+use Test\AppFramework\Middleware\Security\Mock\SecurityMiddlewareController;
 
 class BaseController {
 	/**
@@ -104,6 +108,22 @@ class EndController extends MiddleController {
 }
 
 class ControllerMethodReflectorTest extends \Test\TestCase {
+	public function testGetRepeatedAttributes(): void {
+		$reader = new ControllerMethodReflector(Server::get(LoggerInterface::class));
+		$reader->reflect(SecurityMiddlewareController::class, 'testRepeatedAuthorizedAdminSettings');
+
+		$attributes = $reader->getAttributes(AuthorizedAdminSetting::class);
+		$this->assertSame(
+			[Sharing::class, Users::class],
+			array_map(static fn (\ReflectionAttribute $attribute): string => $attribute->newInstance()->getSettings(), $attributes),
+		);
+		$this->assertSame(Sharing::class, $reader->getAttribute(AuthorizedAdminSetting::class)->newInstance()->getSettings());
+
+		$reader->reflect(SecurityMiddlewareController::class, 'testNoAnnotationNorAttribute');
+		$this->assertSame([], $reader->getAttributes(AuthorizedAdminSetting::class));
+		$this->assertNull($reader->getAttribute(AuthorizedAdminSetting::class));
+	}
+
 	/**
 	 * @Annotation
 	 */
