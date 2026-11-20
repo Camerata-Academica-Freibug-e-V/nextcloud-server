@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace OCA\Provisioning_API\Controller;
 
 use OC\Group\DisplayNameCache as GroupDisplayNameCache;
+use OC\Settings\AuthorizedGroupMapper;
 use OCA\Provisioning_API\ResponseDefinitions;
 use OCA\Settings\Settings\Admin\Sharing;
 use OCA\Settings\Settings\Admin\Users;
@@ -19,6 +20,7 @@ use OCP\AppFramework\Http\Attribute\AuthorizedAdminSetting;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoSubAdminRequired;
 use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
+use OCP\AppFramework\Http\Attribute\SubAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCS\OCSException;
 use OCP\AppFramework\OCS\OCSForbiddenException;
@@ -59,6 +61,7 @@ class GroupsController extends AUserDataOCSController {
 		private LoggerInterface $logger,
 		GroupDisplayNameCache $groupDisplayNameCache,
 		private IURLGenerator $urlGenerator,
+		private AuthorizedGroupMapper $authorizedGroupMapper,
 	) {
 		parent::__construct($appName,
 			$request,
@@ -106,10 +109,24 @@ class GroupsController extends AUserDataOCSController {
 	 * 200: Groups details returned
 	 */
 	#[NoAdminRequired]
+	#[SubAdminRequired]
 	#[AuthorizedAdminSetting(settings: Sharing::class)]
 	#[AuthorizedAdminSetting(settings: Users::class)]
 	public function getGroupsDetails(string $search = '', ?int $limit = null, int $offset = 0): DataResponse {
-		$groups = $this->groupManager->search($search, $limit, $offset);
+		$user = $this->userSession->getUser();
+		$isAdmin = $this->groupManager->isAdmin($user->getUID());
+		$authorizedClasses = $isAdmin ? [] : $this->authorizedGroupMapper->findAllClassesForUser($user);
+		if ($isAdmin || in_array(Sharing::class, $authorizedClasses, true) || in_array(Users::class, $authorizedClasses, true)) {
+			$groups = $this->groupManager->search($search, $limit, $offset);
+		} else {
+			$subAdminGroups = $this->groupManager->getSubAdmin()->getSubAdminsGroups($user);
+			$groupIds = array_fill_keys(array_map(static fn (IGroup $group): string => $group->getGID(), $subAdminGroups), true);
+			$groups = array_filter(
+				$this->groupManager->search($search),
+				static fn (IGroup $group): bool => isset($groupIds[$group->getGID()]),
+			);
+			$groups = array_slice($groups, max(0, $offset), $limit !== null && $limit > 0 ? $limit : null);
+		}
 		$groups = array_map(function ($group) {
 			/** @var IGroup $group */
 			return [
