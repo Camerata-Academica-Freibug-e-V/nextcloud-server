@@ -1,3 +1,5 @@
+SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-FileCopyrightText: 2026 Claus-Justus Heine
 --- ./lib/Db/FsManager.php.orig	2026-11-18 14:01:14.347723667 +0100
 +++ ./lib/Db/FsManager.php	2026-11-18 14:04:25.951895516 +0100
 @@ -36,6 +36,7 @@

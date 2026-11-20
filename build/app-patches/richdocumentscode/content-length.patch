@@ -1,3 +1,12 @@
+SPDX-License-Identifier: Apache-2.0
+SPDX-FileCopyrightText: 2026 Aiden Cole, Collabora Productivity, Ltd.
+
+Borrowed from
+
+https://github.com/CollaboraOnline/richdocumentscode/pull/357 until it
+
+has been included into a release.
+
 diff --git a/proxy.php b/proxy.php
 index 0405c33..bdf8b93 100644
 --- a/proxy.php
