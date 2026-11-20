@@ -21,6 +21,7 @@ use OC\AppFramework\Middleware\MiddlewareDispatcher;
 use OC\AppFramework\Middleware\NotModifiedMiddleware;
 use OC\AppFramework\Middleware\OCSMiddleware;
 use OC\AppFramework\Middleware\PublicShare\PublicShareMiddleware;
+use OC\AppFramework\Middleware\Security\AuthorizedAdminSettingsAuthorization;
 use OC\AppFramework\Middleware\Security\BruteForceMiddleware;
 use OC\AppFramework\Middleware\Security\CORSMiddleware;
 use OC\AppFramework\Middleware\Security\CSPMiddleware;
@@ -40,7 +41,6 @@ use OC\Core\Middleware\TwoFactorMiddleware;
 use OC\Diagnostics\EventLogger;
 use OC\Log\PsrLoggerAdapter;
 use OC\ServerContainer;
-use OC\Settings\AuthorizedGroupMapper;
 use OC\User\Session;
 use OCA\WorkflowEngine\Manager;
 use OCP\App\IAppManager;
@@ -217,7 +217,7 @@ class DIContainer extends SimpleContainer implements IAppContainer {
 				$c->get(ISubAdmin::class),
 				$c->get(IAppManager::class),
 				$server->get(IFactory::class)->get('lib'),
-				$c->get(AuthorizedGroupMapper::class),
+				$c->get(AuthorizedAdminSettingsAuthorization::class),
 				$c->get(IUserSession::class),
 				$c->get(IRemoteAddress::class),
 			);

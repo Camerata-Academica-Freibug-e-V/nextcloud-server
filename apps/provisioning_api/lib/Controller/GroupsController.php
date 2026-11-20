@@ -9,8 +9,9 @@ declare(strict_types=1);
 
 namespace OCA\Provisioning_API\Controller;
 
+use OC\AppFramework\Middleware\Security\AuthorizedAdminSettingsAuthorization;
+use OC\AppFramework\Utility\ControllerMethodReflector;
 use OC\Group\DisplayNameCache as GroupDisplayNameCache;
-use OC\Settings\AuthorizedGroupMapper;
 use OCA\Provisioning_API\ResponseDefinitions;
 use OCA\Settings\Settings\Admin\Sharing;
 use OCA\Settings\Settings\Admin\Users;
@@ -61,7 +62,8 @@ class GroupsController extends AUserDataOCSController {
 		private LoggerInterface $logger,
 		GroupDisplayNameCache $groupDisplayNameCache,
 		private IURLGenerator $urlGenerator,
-		private AuthorizedGroupMapper $authorizedGroupMapper,
+		private AuthorizedAdminSettingsAuthorization $settingsAuthorization,
+		private ControllerMethodReflector $reflector,
 	) {
 		parent::__construct($appName,
 			$request,
@@ -115,8 +117,7 @@ class GroupsController extends AUserDataOCSController {
 	public function getGroupsDetails(string $search = '', ?int $limit = null, int $offset = 0): DataResponse {
 		$user = $this->userSession->getUser();
 		$isAdmin = $this->groupManager->isAdmin($user->getUID());
-		$authorizedClasses = $isAdmin ? [] : $this->authorizedGroupMapper->findAllClassesForUser($user);
-		if ($isAdmin || in_array(Sharing::class, $authorizedClasses, true) || in_array(Users::class, $authorizedClasses, true)) {
+		if ($isAdmin || $this->settingsAuthorization->isAuthorized($user, $this->reflector)) {
 			$groups = $this->groupManager->search($search, $limit, $offset);
 		} else {
 			$subAdminGroups = $this->groupManager->getSubAdmin()->getSubAdminsGroups($user);

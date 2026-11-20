@@ -20,7 +20,6 @@ use OC\AppFramework\Middleware\Security\Exceptions\SecurityException;
 use OC\AppFramework\Middleware\Security\Exceptions\StrictCookieMissingException;
 use OC\AppFramework\Utility\ControllerMethodReflector;
 use OC\Security\CSRF\CsrfTokenManager;
-use OC\Settings\AuthorizedGroupMapper;
 use OC\User\Session;
 use OCA\Talk\Controller\PageController as TalkPageController;
 use OCP\App\AppPathNotFoundException;
@@ -50,7 +49,6 @@ use OCP\IUserSession;
 use OCP\Security\Ip\IRemoteAddress;
 use OCP\Server;
 use Psr\Log\LoggerInterface;
-use ReflectionMethod;
 
 /**
  * Used to do all the authentication and checking stuff for a controller method
@@ -74,7 +72,7 @@ class SecurityMiddleware extends Middleware {
 		private readonly ISubAdmin $subAdminManager,
 		private readonly IAppManager $appManager,
 		private readonly IL10N $l10n,
-		private readonly AuthorizedGroupMapper $groupAuthorizationMapper,
+		private readonly AuthorizedAdminSettingsAuthorization $settingsAuthorization,
 		private readonly IUserSession $userSession,
 		private readonly IRemoteAddress $remoteAddress,
 	) {
@@ -146,15 +144,7 @@ class SecurityMiddleware extends Middleware {
 				}
 
 				if (!$authorized) {
-					$settingClasses = $this->getAuthorizedAdminSettingClasses();
-					$authorizedClasses = $this->groupAuthorizationMapper->findAllClassesForUser($this->userSession->getUser());
-					foreach ($settingClasses as $settingClass) {
-						$authorized = in_array($settingClass, $authorizedClasses, true);
-
-						if ($authorized) {
-							break;
-						}
-					}
+					$authorized = $this->settingsAuthorization->isAuthorized($this->userSession->getUser(), $this->reflector);
 				}
 				if (!$authorized) {
 					throw new NotAdminException($this->l10n->t('Logged in account must be an admin, a sub admin or gotten special right to access this setting'));
@@ -296,22 +286,9 @@ class SecurityMiddleware extends Middleware {
 	}
 
 	/**
-	 * @param ReflectionMethod $reflectionMethod
 	 * @return list<string>
 	 */
 	public function getAuthorizedAdminSettingClasses(): array {
-		$classes = [];
-		if ($this->reflector->hasAnnotation('AuthorizedAdminSetting')) {
-			$classes = explode(';', $this->reflector->getAnnotationParameter('AuthorizedAdminSetting', 'settings'));
-		}
-
-		$attribute = $this->reflector->getAttribute(AuthorizedAdminSetting::class);
-		if ($attribute !== null) {
-			/** @var AuthorizedAdminSetting $setting */
-			$setting = $attribute->newInstance();
-			$classes[] = $setting->getSettings();
-		}
-
-		return $classes;
+		return $this->settingsAuthorization->getSettingClasses($this->reflector);
 	}
 }

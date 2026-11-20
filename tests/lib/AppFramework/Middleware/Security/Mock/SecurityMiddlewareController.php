@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Test\AppFramework\Middleware\Security\Mock;
 
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Http\Attribute\AuthorizedAdminSetting;
 use OCP\AppFramework\Http\Attribute\ExAppRequired;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
@@ -18,6 +19,15 @@ use OCP\AppFramework\Http\Attribute\StrictCookiesRequired;
 use OCP\AppFramework\Http\Attribute\SubAdminRequired;
 
 class SecurityMiddlewareController extends Controller {
+	/**
+	 * @AuthorizedAdminSetting(settings=legacyOne;legacyTwo)
+	 */
+	#[NoCSRFRequired]
+	#[AuthorizedAdminSetting(settings: \OCA\Settings\Settings\Admin\Sharing::class)]
+	#[AuthorizedAdminSetting(settings: \OCA\Settings\Settings\Admin\Users::class)]
+	public function testMixedAuthorizedAdminSettings() {
+	}
+
 	/**
 	 * @PublicPage
 	 * @NoCSRFRequired

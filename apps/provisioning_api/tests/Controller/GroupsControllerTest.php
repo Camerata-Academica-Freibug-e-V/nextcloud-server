@@ -8,6 +8,7 @@
 
 namespace OCA\Provisioning_API\Tests\Controller;
 
+use OC\AppFramework\Middleware\Security\AuthorizedAdminSettingsAuthorization;
 use OC\AppFramework\Middleware\Security\Exceptions\NotAdminException;
 use OC\AppFramework\Middleware\Security\SecurityMiddleware;
 use OC\AppFramework\Utility\ControllerMethodReflector;
@@ -53,6 +54,7 @@ class GroupsControllerTest extends \Test\TestCase {
 	private GroupDisplayNameCache&MockObject $groupDisplayNameCache;
 	private IURLGenerator&MockObject $urlGenerator;
 	private AuthorizedGroupMapper&MockObject $authorizedGroupMapper;
+	private ControllerMethodReflector $reflector;
 
 	private IRootFolder $rootFolder;
 
@@ -72,6 +74,7 @@ class GroupsControllerTest extends \Test\TestCase {
 		$this->groupDisplayNameCache = $this->createMock(GroupDisplayNameCache::class);
 		$this->urlGenerator = $this->createMock(IURLGenerator::class);
 		$this->authorizedGroupMapper = $this->createMock(AuthorizedGroupMapper::class);
+		$this->reflector = new ControllerMethodReflector($this->logger);
 
 		$this->groupManager
 			->method('getSubAdmin')
@@ -92,10 +95,12 @@ class GroupsControllerTest extends \Test\TestCase {
 				$this->logger,
 				$this->groupDisplayNameCache,
 				$this->urlGenerator,
-				$this->authorizedGroupMapper,
+				new AuthorizedAdminSettingsAuthorization($this->authorizedGroupMapper),
+				$this->reflector,
 			])
 			->onlyMethods(['fillStorageInfo'])
 			->getMock();
+		$this->reflector->reflect($this->api, 'getGroupsDetails');
 	}
 
 	private function createGroup(string $gid): IGroup&MockObject {
@@ -318,7 +323,7 @@ class GroupsControllerTest extends \Test\TestCase {
 			$this->subAdminManager,
 			$appManager,
 			$this->createMock(IL10N::class),
-			$this->authorizedGroupMapper,
+			new AuthorizedAdminSettingsAuthorization($this->authorizedGroupMapper),
 			$this->userSession,
 			$remoteAddress,
 		);
@@ -332,7 +337,9 @@ class GroupsControllerTest extends \Test\TestCase {
 	public static function dataGroupDetailsAuthorization(): array {
 		return [
 			[true, [], true],
+			[true, [Users::class], true],
 			[false, [Sharing::class], true],
+			[false, [Users::class], true],
 			[false, ['unrelated-setting'], false],
 		];
 	}
